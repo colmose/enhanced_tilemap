@@ -1,6 +1,6 @@
 {
   "name": "enhanced_tilemap",
-  "version": "kibana",
+  "version": "5.6.8",
   "kibana": {
     "version": "5.6.8"
   },
@@ -15,6 +15,13 @@
     "gulp": "3.9.1",
     "gulp-mocha": "3.0.1",
     "jsdom": "9.9.1",
+    "mkdirp": "^0.5.1",
+    "minimist": "1.2.0",
+    "gulp-zip": "4.0.0",
+    "gulp-eslint": "^1.1.1",
+    "bluebird": "3.5.1",
+    "rimraf": "2.6.2",
+    "rsync": "0.6.1",
     "jsdom-global": "2.1.1"
   }
 }
