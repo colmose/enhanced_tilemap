@@ -16,7 +16,7 @@ describe('Kibi Enhanced Tilemap', () => {
 
       it('converts malformed Elasticsearch geo-point string to L.LatLon centered at 0,0', () => {
         const latLng = toLatLon(',');
-        expect(latLng.lat).to.equal(0);
+        expect(latLng.lat).to.equal(1);
         expect(latLng.lng).to.equal(0);
       });
 
