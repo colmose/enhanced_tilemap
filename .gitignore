@@ -4,3 +4,5 @@ build
 target
 .gradle
 package-lock.json
+.project
+bin/
