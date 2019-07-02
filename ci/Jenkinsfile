@@ -1,6 +1,0 @@
-// #!/usr/bin/env groovy
-library 'jenkins-lib'
-
-sirenPluginPipeline {
-  kibiInternalBranch = 'branch-10.1.x'
-}
