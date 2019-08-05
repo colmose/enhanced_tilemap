@@ -61,7 +61,7 @@ define(function (require) {
       let self = this;
 
       // create the legend control, keep a reference
-      self._legend = L.control({position: 'bottomright'});
+      self._legend = L.control({ position: 'bottomright' });
 
       self._legend.onAdd = function () {
         // creates all the neccessary DOM elements for the control, adds listeners
@@ -89,9 +89,9 @@ define(function (require) {
 
         _.each(self._legendColors, function (color, i) {
           let labelText = self._legendQuantizer
-          .invertExtent(color)
-          .map(self._valueFormatter)
-          .join(' – ');
+            .invertExtent(color)
+            .map(self._valueFormatter)
+            .join(' – ');
 
           let label = $('<div>').text(labelText);
 
@@ -278,7 +278,7 @@ define(function (require) {
         this._markerGroup = L.geoJson(self.geoJson, _.defaults(defaultOptions, options));
       } else {
         //don't block UI when processing lots of features
-        this._markerGroup = L.geoJson(self.geoJson.features.slice(0,100), _.defaults(defaultOptions, options));
+        this._markerGroup = L.geoJson(self.geoJson.features.slice(0, 100), _.defaults(defaultOptions, options));
         this._stopLoadingGeohash();
 
         this._createSpinControl();
@@ -336,9 +336,9 @@ define(function (require) {
         maxWidth: 'auto',
         offset: utils.popupOffset(this.map, content, latLng)
       })
-      .setLatLng(latLng)
-      .setContent(content)
-      .openOn(this.map);
+        .setLatLng(latLng)
+        .setContent(content)
+        .openOn(this.map);
     };
 
     /**
@@ -420,7 +420,7 @@ define(function (require) {
 
         if (featureLength <= 1 || range <= 1) {
           this._legendColors = reds1;
-        } else if (featureLength <= 9  || range <= 3) {
+        } else if (featureLength <= 9 || range <= 3) {
           this._legendColors = reds3;
         } else {
           this._legendColors = reds5;

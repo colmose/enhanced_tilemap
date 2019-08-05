@@ -34,6 +34,7 @@ define(function (require) {
       'Shaded Circle Markers': Private(require('./marker_types/shaded_circles')),
       'Shaded Geohash Grid': Private(require('./marker_types/geohash_grid')),
       'Heatmap': Private(require('./marker_types/heatmap')),
+      'Marker Clustering': Private(require('./marker_types/marker_cluster')),
     };
 
     /**
@@ -278,6 +279,8 @@ define(function (require) {
         prevState: prevState,
         attr: this._attr
       });
+      console.log('example marker type: ');
+      console.log(this._markers);
     };
 
     /**

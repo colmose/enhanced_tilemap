@@ -65,7 +65,7 @@ define(function (require) {
           },
           wms: config.get('visualization:tileMap:WMSdefaults')
         },
-        mapTypes: ['Scaled Circle Markers', 'Shaded Circle Markers', 'Shaded Geohash Grid', 'Heatmap'],
+        mapTypes: ['Scaled Circle Markers', 'Shaded Circle Markers', 'Shaded Geohash Grid', 'Heatmap', 'Marker Clustering'],
         scaleTypes: ['Dynamic - Linear', 'Dynamic - Uneven', 'Static'],
         canDesaturate: !!supports.cssFilters,
         editor: require('plugins/enhanced_tilemap/options.html')
