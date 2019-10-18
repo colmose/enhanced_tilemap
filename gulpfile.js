@@ -12,7 +12,7 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 var minimist = require('minimist');
 var os = require('os');
-var pkg = require(path.join(process.cwd(), 'package.json'));
+var pkg = require('./package.json');
 var packageName = pkg.name;
 
 // in their own sub-directory to not interfere with Gradle
@@ -35,7 +35,7 @@ var knownOptions = {
 };
 
 var options = minimist(process.argv.slice(2), knownOptions);
-var kibanaPluginDir = path.resolve(__dirname, options.kibanahomepath + '/siren_plugins/' + packageName);
+var kibanaPluginDir = path.resolve(__dirname, path.join(options.kibanahomepath, 'siren_plugins', packageName));
 
 
 function syncPluginTo(dest, done) {
