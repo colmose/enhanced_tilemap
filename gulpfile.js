@@ -150,7 +150,7 @@ gulp.task('dev', gulp.series(['sync'], function (done) {
     'package.json',
     'index.js',
     'public/**/*'
-  ], ['sync', 'lint']);
+  ], gulp.series('sync', 'lint'));
 }));
 
 gulp.task('test', gulp.series(['sync'], function (done) {
