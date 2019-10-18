@@ -12,7 +12,7 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 var minimist = require('minimist');
 var os = require('os');
-var pkg = require('./package.json');
+var pkg = require(path.join(process.cwd(), 'package.json'));
 var packageName = pkg.name;
 
 // in their own sub-directory to not interfere with Gradle
@@ -150,7 +150,7 @@ gulp.task('dev', gulp.series(['sync'], function (done) {
     'package.json',
     'index.js',
     'public/**/*'
-  ], gulp.series('sync', 'lint'));
+  ], gulp.series(['sync', 'lint']));
 }));
 
 gulp.task('test', gulp.series(['sync'], function (done) {
