@@ -133,41 +133,41 @@ gulp.task('clean', function (done) {
   }).nodeify(done);
 });
 
-gulp.task('build', gulp.series(['clean'], function (done) {
+gulp.task('build', gulp.series('clean', function (done) {
   syncPluginTo(buildTarget, done);
 }));
 
-gulp.task('package', gulp.series(['build'], function (done) {
+gulp.task('package', gulp.series('build', function (done) {
   return gulp.src([
     path.join(buildDir, '**', '*')
   ])
     .pipe(zip(packageName + '.zip'))
-    .pipe(gulp.dest(targetDir));
+    .pipe(gulp.symlink(targetDir));
 }));
 
-gulp.task('dev', gulp.series(['sync'], function (done) {
+gulp.task('dev', gulp.series('sync', function (done) {
   gulp.watch([
     'package.json',
     'index.js',
     'public/**/*'
-  ], gulp.series(['sync', 'lint']));
+  ], gulp.series('sync', 'lint'));
 }));
 
-gulp.task('test', gulp.series(['sync'], function (done) {
+gulp.task('test', gulp.series('sync', function (done) {
   spawn('grunt', [ 'test:browser', '--grep=Kibi Enhanced Tilemap'], {
     cwd: options.kibanahomepath,
     stdio: 'inherit'
   }).on('close', done);
 }));
 
-gulp.task('testdev', gulp.series(['sync'], function (done) {
+gulp.task('testdev', gulp.series('sync', function (done) {
   spawn('grunt', ['test:dev', '--browser=Chrome', '--kbnServer.ignoreDevYml'], {
     cwd: options.kibanahomepath,
     stdio: 'inherit'
   }).on('close', done);
 }));
 
-gulp.task('coverage', gulp.series(['sync'], function (done) {
+gulp.task('coverage', gulp.series('sync', function (done) {
   spawn('grunt', ['test:coverage', '--grep=Kibi Enhanced Tilemap'], {
     cwd: options.kibanahomepath,
     stdio: 'inherit'
