@@ -14,12 +14,11 @@ var minimist = require('minimist');
 var os = require('os');
 var pkg = require('./package.json');
 var packageName = pkg.name;
-var symlink =gulp.symlink;
 
 // in their own sub-directory to not interfere with Gradle
-var buildDir = path.resolve(symlink(__dirname, 'build/gulp'));
+var buildDir = path.resolve(__dirname, 'build/gulp');
 var fixtureDir = path.resolve(buildDir, 'fixtures');
-var targetDir = path.resolve(symlink(__dirname, 'target/gulp'));
+var targetDir = path.resolve(__dirname, 'target/gulp');
 var buildTarget = path.resolve(buildDir, 'kibana', packageName);
 
 var include = [
@@ -36,14 +35,14 @@ var knownOptions = {
 };
 
 var options = minimist(process.argv.slice(2), knownOptions);
-var kibanaPluginDir = path.resolve(symlink(__dirname, path.join(options.kibanahomepath, 'siren_plugins', packageName)));
+var kibanaPluginDir = path.resolve(__dirname, path.join(options.kibanahomepath, 'siren_plugins', packageName));
 
 
 function syncPluginTo(dest, done) {
   mkdirp(dest, function (err) {
     if (err) return done(err);
     Promise.all(include.map(function (name) {
-      var source = path.resolve(symlink(__dirname, name));
+      var source = path.resolve(__dirname, name);
       return new Promise(function (resolve, reject) {
         var rsync = new Rsync();
 
@@ -103,7 +102,7 @@ const eslintOptions = {
   rules: {
     memoryleaks: 1
   },
-  rulePaths: [path.resolve(symlink(__dirname, options.kibanahomepath, 'scripts', 'eslintrules'))],
+  rulePaths: [path.resolve(__dirname, options.kibanahomepath, 'scripts', 'eslintrules')],
   fix: true
 };
 
