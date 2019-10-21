@@ -32,7 +32,7 @@ define(function (require) {
       this.syncFilters = _.get(params, 'syncFilters', false);
     }
 
-    const getPopupParent = function (element, className) {
+    const getParentWithClass = function (element, className) {
       let parent = element;
       while (parent != null) {
         if (parent.className && L.DomUtil.hasClass(parent, className)) {
@@ -78,7 +78,7 @@ define(function (require) {
           excludes: []
         });
 
-        // assigning the placeholder value of 1000 POIs in the 
+        // assigning the placeholder value of 1000 POIs in the
         // case where number in the limit field has been replaced with null
         let poiLimitToDisplay;
         if (this.limit) {
@@ -207,7 +207,7 @@ define(function (require) {
           // get the element that the mouse hovered onto
           const target = e.toElement || e.relatedTarget;
           // check to see if the element is a popup
-          if (getPopupParent(target, 'leaflet-popup')) {
+          if (getParentWithClass(target, 'leaflet-popup')) {
             return true;
           }
           self.closePopup();
@@ -217,7 +217,7 @@ define(function (require) {
       const target = e.originalEvent.toElement || e.originalEvent.relatedTarget;
 
       // check to see if the element is a popup
-      if (getPopupParent(target, 'leaflet-popup')) {
+      if (getParentWithClass(target, 'leaflet-popup')) {
         L.DomEvent.on(self._map._popup._container, 'mouseout', self._popupMouseOut, self);
         return true;
       }
@@ -253,7 +253,7 @@ define(function (require) {
           // get the element that the mouse hovered onto
           const target = e.toElement || e.relatedTarget;
           // check to see if the element is a popup
-          if (getPopupParent(target, 'leaflet-popup')) {
+          if (getParentWithClass(target, 'leaflet-popup')) {
             return true;
           }
           self._map.closePopup();
@@ -263,7 +263,7 @@ define(function (require) {
       const target = e.originalEvent.toElement || e.originalEvent.relatedTarget;
 
       // check to see if the element is a popup
-      if (getPopupParent(target, 'leaflet-popup')) {
+      if (getParentWithClass(target, 'leaflet-popup')) {
         L.DomEvent.on(self._map._popup._container, 'mouseout', self._popupMouseOut, self);
         return true;
       }
