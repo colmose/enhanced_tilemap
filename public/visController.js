@@ -110,7 +110,9 @@ define(function (require) {
 
     function initPOILayer(layerParams) {
       const poi = new POIsProvider(layerParams);
+      const displayName = layerParams.displayName || layerParams.savedSearchLabel;
       const options = {
+        displayName,
         color: _.get(layerParams, 'color', '#008800'),
         size: _.get(layerParams, 'markerSize', 'm'),
         mapExtentFilter: {
@@ -127,7 +129,7 @@ define(function (require) {
       }
 
       poi.getLayer(options, function (layer) {
-        map.addPOILayer(layerParams.savedSearchId, layer);
+        map.addPOILayer(displayName, layer);
       });
     }
 
@@ -145,9 +147,7 @@ define(function (require) {
 
         //POI overlays
         map.clearPOILayers();
-        $scope.vis.params.overlays.savedSearches.forEach(function (layerParams) {
-          initPOILayer(layerParams);
-        });
+        $scope.vis.params.overlays.savedSearches.forEach(initPOILayer);
       }
     });
 
@@ -182,6 +182,9 @@ define(function (require) {
 
         if (newChecked !== oldChecked && $scope.check === true) {
           drawWmsOverlays();
+
+          //POI overlays
+          map.clearPOILayers();
           $scope.vis.params.overlays.savedSearches.forEach(initPOILayer);
         }
       }
