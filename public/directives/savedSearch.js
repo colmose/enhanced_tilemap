@@ -27,7 +27,19 @@ define(function (require) {
           scrollable: true
         };
 
+        scope.isGeoShape = function () {
+          scope.layer.geoShape = false;
+          _.each(scope.geoFieldTypes, geoFieldType => {
+            if (scope.layer.geoField === geoFieldType.name &&
+              geoFieldType.type === 'geo_shape') {
+              scope.layer.geoShape = true;
+              return false;
+            };
+          });
+        };
+
         fetchSavedSearches();
+        scope.isGeoShape();
 
         scope.updateIndex = function () {
           scope.warn = '';
@@ -37,7 +49,8 @@ define(function (require) {
           scope.layer.popupFields = [];
 
           refreshIndexFields(scope.savedSearch.indexId, function (geoFields, labelFields) {
-            scope.geoFields = geoFields;
+            scope.geoFields = geoFields.geoFieldNames;
+            scope.geoFieldTypes = geoFields.geoFieldTypes;
             scope.labelFields = labelFields;
 
             if (scope.geoFields.length === 0) {
@@ -56,45 +69,57 @@ define(function (require) {
         function fetchSavedSearches() {
           //TODO add filter to find to reduce results
           service.find(scope.layer.filter)
-          .then(function (hits) {
-            scope.items = _.map(hits.hits, function (hit) {
-              return {
-                indexId: getIndexId(hit),
-                label: hit.title,
-                value: hit.id
-              };
-            });
+            .then(function (hits) {
+              scope.items = _.map(hits.hits, function (hit) {
+                return {
+                  indexId: getIndexId(hit),
+                  label: hit.title,
+                  value: hit.id
+                };
+              });
 
-            const selected = _.filter(scope.items, function (item) {
-              if (item.value === scope.layer.savedSearchId) {
-                return true;
+              const selected = _.filter(scope.items, function (item) {
+                if (item.value === scope.layer.savedSearchId) {
+                  return true;
+                }
+              });
+              if (selected.length > 0) {
+                scope.savedSearch = selected[0];
+                refreshIndexFields(selected[0].indexId, function (geoFields, labelFields) {
+                  scope.geoFields = geoFields.geoFieldNames;
+                  scope.geoFieldTypes = geoFields.geoFieldTypes;
+                  scope.labelFields = labelFields;
+                });
               }
             });
-            if (selected.length > 0) {
-              scope.savedSearch = selected[0];
-              refreshIndexFields(selected[0].indexId, function (geoFields, labelFields) {
-                scope.geoFields = geoFields;
-                scope.labelFields = labelFields;
-              });
-            }
-          });
         }
       }
     };
 
     function refreshIndexFields(indexId, callback) {
       indexPatterns.get(indexId).then(function (index) {
-        const geoFields = index.fields.filter(function (field) {
+        const geoFieldsRaw = index.fields.filter(function (field) {
           return field.type === 'geo_point' || field.type === 'geo_shape';
-        }).map(function (field) {
-          return field.name;
         });
+
+        const geoFieldNames = [];
+        const geoFieldTypes = [];
+
+        _.each(geoFieldsRaw, individualGeoField => {
+          geoFieldNames.push(individualGeoField.name);
+          geoFieldTypes.push({
+            name: individualGeoField.name,
+            type: individualGeoField.type
+          });
+        });
+
+        const geoFields = { geoFieldNames, geoFieldTypes };
 
         const labelFields = index.fields.filter(function (field) {
           let keep = true;
           if (field.type === 'boolean' || field.type === 'geo_point' || field.type === 'geo_shape') {
             keep = false;
-          } else if (!field.name || field.name.substring(0,1) === '_') {
+          } else if (!field.name || field.name.substring(0, 1) === '_') {
             keep = false;
           }
           return keep;
