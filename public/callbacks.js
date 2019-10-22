@@ -1,3 +1,5 @@
+import { filterHelper } from 'ui/kibi/components/dashboards360/filter_helper';
+
 define(function (require) {
   return function CallbacksFactory(Private, courier, config) {
     const _ = require('lodash');
@@ -104,9 +106,9 @@ define(function (require) {
           newFilter.geo_polygon[field] = { points: event.points };
         }
 
-        const _sirenMeta = { vis: agg.vis._siren.vis };
+        filterHelper.addSirenPropertyToFilterMeta(newFilter, agg.vis._siren);
 
-        geoFilter.add(newFilter, field, indexPatternName, _sirenMeta);
+        geoFilter.add(newFilter, field, indexPatternName);
       },
       rectangle: function (event) {
         const agg = _.get(event, 'chart.geohashGridAgg');
@@ -122,9 +124,9 @@ define(function (require) {
         const newFilter = geoFilter.rectFilter(
           field, geotype, event.bounds.top_left, event.bounds.bottom_right);
 
-        const _sirenMeta = { vis: agg.vis._siren.vis };
+        filterHelper.addSirenPropertyToFilterMeta(newFilter, agg.vis._siren);
 
-        geoFilter.add(newFilter, field, indexPatternName, _sirenMeta);
+        geoFilter.add(newFilter, field, indexPatternName);
       },
       circle: function (event) {
         const agg = _.get(event, 'chart.geohashGridAgg');
@@ -140,9 +142,9 @@ define(function (require) {
         const newFilter = geoFilter.circleFilter(
           field, center[0], center[1], radius);
 
-        const _sirenMeta = { vis: agg.vis._siren.vis };
+        filterHelper.addSirenPropertyToFilterMeta(newFilter, agg.vis._siren);
 
-        geoFilter.add(newFilter, field, indexPatternName, _sirenMeta);
+        geoFilter.add(newFilter, field, indexPatternName);
       }
     };
   };

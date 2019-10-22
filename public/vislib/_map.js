@@ -203,6 +203,10 @@ define(function (require) {
       if (this._fitControl) this._fitControl.removeFrom(this.map);
       if (this._drawControl) this._drawControl.remove(this.map);
       if (this._markers) this._markers.destroy();
+      if (this._poiLayers) {
+        _.each(this._poiLayers, poiLayer => poiLayer.destroy());
+        this._poiLayers = {};
+      }
       syncMaps.remove(this.map);
       this.map.remove();
       this.map = undefined;
@@ -212,6 +216,7 @@ define(function (require) {
       const self = this;
       Object.keys(this._poiLayers).forEach(function (key) {
         const layer = self._poiLayers[key];
+        layer.destroy();
         self._layerControl.removeLayer(layer);
         self.map.removeLayer(layer);
       });
@@ -224,6 +229,7 @@ define(function (require) {
       //remove layer if it already exists
       if (_.has(this._poiLayers, layerName)) {
         const layer = this._poiLayers[layerName];
+        this._poiLayers[layerName].destroy();
         isVisible = this.map.hasLayer(layer);
         this._layerControl.removeLayer(layer);
         this.map.removeLayer(layer);
