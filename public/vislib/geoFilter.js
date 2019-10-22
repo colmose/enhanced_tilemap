@@ -1,104 +1,232 @@
 import { FilterBarQueryFilterProvider } from 'ui/filter_bar/query_filter';
+import React from 'react';
+import { modalWithForm } from './geoFilterModal/geoFilterModal';
+import { render, unmountComponentAtNode } from 'react-dom';
+import {
+  EuiButton,
+  EuiFlexGroup,
+  EuiFlexItem
+} from '@elastic/eui';
 
 define(function (require) {
   const L = require('leaflet');
   const LAT_INDEX = 1;
   const LON_INDEX = 0;
 
-  return function GeoFilterFactory(Private, confirmModal) {
+  return function GeoFilterFactory(Private) {
     const _ = require('lodash');
     const queryFilter = Private(FilterBarQueryFilterProvider);
+    const geoFilterHelper = require('./geoFilterHelper');
 
     function filterAlias(field, numBoxes) {
-      return field + ': ' + numBoxes + ' geo filters';
+      if (numBoxes === 1) {
+        return field + ': ' + numBoxes + ' shape';
+      } else {
+        return field + ': ' + numBoxes + ' shapes';
+      }
     }
 
-    function _applyFilter(newFilter, field, indexPatternName, _sirenMeta) {
-      let numFilters = 1;
-      if (_.isArray(newFilter)) {
-        numFilters = newFilter.length;
-        newFilter = {
-          bool: {
-            should: newFilter
-          }
-        };
-      }
-      newFilter.meta = {
-        alias: filterAlias(field, numFilters),
-        negate: false,
-        index: indexPatternName,
-        _siren: _sirenMeta,
-        key: field
+    function _createPolygonFilter(polygonsToFilter) {
+      return {
+        bool: {
+          should: polygonsToFilter
+        }
       };
+    };
+
+
+    function _applyFilter(newFilter, field, indexPatternId) {
+      let numShapes = 1;
+      let polygonFiltersAndDonuts = {};
+      if (newFilter.geo_multi_polygon) {
+        const polygons = newFilter.geo_multi_polygon[field].polygons;
+        polygonFiltersAndDonuts = geoFilterHelper.analyseMultiPolygon(polygons, field);
+        numShapes = polygons.length;
+        newFilter = _createPolygonFilter(polygonFiltersAndDonuts.polygonsToFilter);
+      } else if (newFilter.geo_polygon) {
+        //Only analyse vector geo polygons, i.e. not drawn ones
+        if (newFilter.geo_polygon[field].polygons) {
+          polygonFiltersAndDonuts = geoFilterHelper.analyseSimplePolygon(newFilter, field);
+          newFilter = _createPolygonFilter(polygonFiltersAndDonuts.polygonsToFilter);
+        };
+      };
+
+      //add all donuts
+      if (polygonFiltersAndDonuts &&
+        polygonFiltersAndDonuts.donutsToExclude &&
+        polygonFiltersAndDonuts.donutsToExclude.length >= 1) {
+        numShapes += polygonFiltersAndDonuts.donutsToExclude.length;
+        newFilter.bool.must_not = polygonFiltersAndDonuts.donutsToExclude;
+      };
+
+      newFilter.meta = {
+        numShapes: numShapes,
+        alias: filterAlias(field, numShapes),
+        negate: false,
+        index: indexPatternId,
+        key: field,
+        _siren: _.get(newFilter, 'meta._siren', null)
+      };
+
       queryFilter.addFilters(newFilter);
-    }
+    };
 
     function _combineFilters(newFilter, existingFilter, field) {
-      let geoFilters = _.flatten([newFilter]);
-      let type = '';
-      if (_.has(existingFilter, 'bool.should')) {
-        geoFilters = geoFilters.concat(existingFilter.bool.should);
-        type = 'bool';
+      let geoFilters = [];
+      let donutsToExclude = [];
+      let polygonFiltersAndDonuts = {};
+
+      const updatedFilter = { meta: existingFilter.meta };
+      delete newFilter.meta;
+
+      //handling new filter, also adding new donuts
+      if (_.has(newFilter, 'geo_multi_polygon')) {
+        polygonFiltersAndDonuts = geoFilterHelper.analyseMultiPolygon(newFilter.geo_multi_polygon[field].polygons, field);
+        geoFilters = polygonFiltersAndDonuts.polygonsToFilter;
+        donutsToExclude = polygonFiltersAndDonuts.donutsToExclude;
+      } else if (_.has(newFilter, 'geo_polygon') &&
+        (newFilter.geo_polygon &&
+          newFilter.geo_polygon[field] &&
+          newFilter.geo_polygon[field].polygons)) {
+        polygonFiltersAndDonuts = geoFilterHelper.analyseSimplePolygon(newFilter, field);
+        geoFilters = polygonFiltersAndDonuts.polygonsToFilter;
+        donutsToExclude = polygonFiltersAndDonuts.donutsToExclude;
+      } else {
+        geoFilters = _.flatten([newFilter]);
+      };
+
+      //handling existing filters
+      if (_.has(existingFilter, 'bool')) {
+        if (_.has(existingFilter, 'bool.should')) {
+          geoFilters = geoFilters.concat(existingFilter.bool.should);
+        };
+        //including pre-existing donuts
+        if (_.has(existingFilter, 'bool.must_not')) {
+          donutsToExclude = donutsToExclude.concat(existingFilter.bool.must_not);
+        };
       } else if (_.has(existingFilter, 'geo_bounding_box')) {
         geoFilters.push({ geo_bounding_box: existingFilter.geo_bounding_box });
-        type = 'geo_bounding_box';
       } else if (_.has(existingFilter, 'geo_polygon')) {
         geoFilters.push({ geo_polygon: existingFilter.geo_polygon });
-        type = 'geo_polygon';
       } else if (_.has(existingFilter, 'geo_shape')) {
         geoFilters.push({ geo_shape: existingFilter.geo_shape });
-        type = 'geo_shape';
       } else if (_.has(existingFilter, 'geo_distance')) {
         geoFilters.push({ geo_distance: existingFilter.geo_distance });
-        type = 'geo_distance';
       }
 
-      // Update method removed - so just remove old filter and add updated filter
-      const updatedFilter = {
-        bool: {
-          should: geoFilters
-        },
-        meta: existingFilter.meta
+      let numShapes = geoFilters.length;
+
+      updatedFilter.bool = { should: geoFilters };
+      // adding all donuts
+      if (donutsToExclude.length !== 0) {
+        numShapes += donutsToExclude.length;
+        updatedFilter.bool.must_not = donutsToExclude;
       };
-      updatedFilter.meta.alias = filterAlias(field, geoFilters.length);
+
+      updatedFilter.meta.numShapes = numShapes;
+      updatedFilter.meta.alias = filterAlias(field, numShapes);
       queryFilter.removeFilter(existingFilter);
-      queryFilter.addFilters([updatedFilter]);
+      queryFilter.addFilters(updatedFilter);
     }
 
-    function _overwriteFilters(newFilter, existingFilter, field, indexPatternName) {
+    function _overwriteFilters(newFilter, existingFilter, field, indexPatternId) {
       if (existingFilter) {
         queryFilter.removeFilter(existingFilter);
       }
 
-      _applyFilter(newFilter, field, indexPatternName);
+      _applyFilter(newFilter, field, indexPatternId);
     }
 
-    function addGeoFilter(newFilter, field, indexPatternName, sirenMeta) {
+    function addGeoFilter(newFilter, field, indexPatternId) {
       let existingFilter = null;
-      _.flatten([queryFilter.getAppFilters(), queryFilter.getGlobalFilters()]).forEach(function (it) {
-        if (isGeoFilter(it, field)) {
-          existingFilter = it;
-        }
-      });
 
-      if (existingFilter) {
-        const confirmModalOptions = {
-          confirmButtonText: 'Combine with existing filters',
-          cancelButtonText: 'Overwrite existing filter',
-          onCancel: () => {
-            _overwriteFilters(newFilter, existingFilter, field, indexPatternName);
-          },
-          onConfirm: () => {
-            _combineFilters(newFilter, existingFilter, field);
+      //counting total number of filters linked to the IndexPattern of NewFilter
+      const allFilters = [...queryFilter.getAppFilters(), ...queryFilter.getGlobalFilters()];
+      let numFiltersFromThisInstance = 0;
+
+      if (allFilters.length > 0) {
+        _.each(allFilters, filter => {
+          if (newFilter.meta && newFilter.meta._siren && newFilter.meta._siren.vis) {
+            const filterVisMeta = filter.meta._siren.vis;
+            const newFilterVisMeta = newFilter.meta._siren.vis;
+            if (filter.meta.index === indexPatternId &&
+              isGeoFilter(filter, field) &&
+              filterVisMeta.id === newFilterVisMeta.id &&
+              filterVisMeta.panelIndex === newFilterVisMeta.panelIndex) {
+              numFiltersFromThisInstance += 1;
+              existingFilter = filter;
+            };
+          } else {
+            if (isGeoFilter(filter, field)) {
+              numFiltersFromThisInstance += 1;
+              existingFilter = filter;
+            };
           }
+        });
+      };
+
+
+      if (numFiltersFromThisInstance === 0 || numFiltersFromThisInstance >= 2) {
+        _applyFilter(newFilter, field, indexPatternId);
+
+      } else if (numFiltersFromThisInstance === 1) {
+        const domNode = document.createElement('div');
+        document.body.append(domNode);
+        const title = 'Filter creation';
+        const form = 'How would you like this filter applied?';
+        const onClose = function () {
+          unmountComponentAtNode(domNode);
+          document.body.removeChild(domNode);
         };
+        const footer = (
+          <EuiFlexGroup gutterSize="s" alignItems="center">
+            <EuiFlexItem grow={false}>
+              <EuiButton
+                fill
+                size="s"
+                onClick={() => {
+                  _overwriteFilters(newFilter, existingFilter, field, indexPatternId);
+                  onClose();
+                }}
+              >
+                Overwrite existing filter
+              </EuiButton>
+            </EuiFlexItem>
 
-        confirmModal('How would you like this filter applied?', confirmModalOptions);
-      } else {
-        _applyFilter(newFilter, field, indexPatternName, sirenMeta);
-      }
-    }
+            <EuiFlexItem grow={false}>
+              <EuiButton
+                fill
+                size="s"
+                onClick={() => {
+                  _applyFilter(newFilter, field, indexPatternId);
+                  onClose();
+                }}
+              >
+                Create new filter
+              </EuiButton>
+            </EuiFlexItem>
 
+            <EuiFlexItem grow={false}>
+              <EuiButton
+                fill
+                size="s"
+                onClick={() => {
+                  _combineFilters(newFilter, existingFilter, field);
+                  onClose();
+                }}
+              >
+                Combine with existing filters
+              </EuiButton>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+        );
+
+        render(
+          modalWithForm(title, form, footer, onClose),
+          domNode
+        );
+      };
+    };
     /**
      * Convert elasticsearch geospatial filter to leaflet vectors
      *

@@ -204,7 +204,9 @@ define(function (require) {
 
     //Mouse event creation for GeoShape
     POIs.prototype.addMouseOverGeoShape = function (e) {
-      this.openPopup();
+      if (!e.target._map.disablePopups) {
+        this.openPopup();
+      }
     };
     POIs.prototype.addMouseOutToGeoShape = function (e) {
       const self = this;
@@ -239,15 +241,17 @@ define(function (require) {
     //Mouse event creation and closing for GeoPoints
     POIs.prototype._getMouseOverGeoPoint = function (content) {
       const popup = function (e) {
-        L.popup({
-          autoPan: false,
-          maxHeight: 'auto',
-          maxWidth: 'auto',
-          offset: utils.popupOffset(this._map, content, e.latlng)
-        })
-          .setLatLng(e.latlng)
-          .setContent(content)
-          .openOn(this._map);
+        if (!e.target._map.disablePopups) {
+          L.popup({
+            autoPan: false,
+            maxHeight: 'auto',
+            maxWidth: 'auto',
+            offset: utils.popupOffset(this._map, content, e.latlng)
+          })
+            .setLatLng(e.latlng)
+            .setContent(content)
+            .openOn(this._map);
+        };
       };
       return popup;
     };
