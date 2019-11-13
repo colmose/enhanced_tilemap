@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const L = require('leaflet');
-import { searchIcon } from 'plugins/enhanced_tilemap/vislib/searchIcon';
+import { searchIcon } from 'plugins/enhanced_tilemap/vislib/icons/searchIcon';
 import { toLatLng } from 'plugins/enhanced_tilemap/vislib/geo_point';
 import { SearchSourceProvider } from 'ui/courier/data_source/search_source';
 import { FilterBarQueryFilterProvider } from 'ui/filter_bar/query_filter';
@@ -24,8 +24,7 @@ define(function (require) {
     const SearchSource = Private(SearchSourceProvider);
     const queryFilter = Private(FilterBarQueryFilterProvider);
     const geoFilter = Private(require('plugins/enhanced_tilemap/vislib/geoFilter'));
-    const MarkerClusterProvider = Private(require('./vislib/marker_cluster'));
-    //const MarkerCluster = require('leaflet.markercluster');
+    require('./lib/leaflet.markercluster/leaflet.markercluster');
 
     /**
      * Points of Interest
@@ -308,8 +307,11 @@ define(function (require) {
         //   return self._createMarker(hit, options);
         // });
 
+        layer = L.markerClusterGroup({
+          chunkedLoading: true,
+          showCoverageOnHover: true
+        });
 
-        layer = L.markerClusterGroup();
         _.map(hits, hit => {
           layer.addLayer(self._createMarker(hit, options));
         });
@@ -317,7 +319,7 @@ define(function (require) {
 
         //layer = new MarkerClusterProvider(this._map, hits);
 
-        layer.destroy = () => console.log('Hello'); // layer.forEach(self._removeMouseEventsGeoPoint);
+        layer.destroy = () => console.log('Hello'); //TODO add destroy method// layer.forEach(self._removeMouseEventsGeoPoint);
       } else if ('geo_shape' === geoType) {
         const shapes = _.map(hits, hit => {
           const geometry = _.get(hit, `_source[${self.geoField}]`);

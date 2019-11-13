@@ -1,4 +1,4 @@
-import { markerIcon } from 'plugins/enhanced_tilemap/vislib/markerIcon';
+import { markerIcon } from 'plugins/enhanced_tilemap/vislib/icons/markerIcon';
 
 define(function (require) {
   return function MapFactory(Private) {
