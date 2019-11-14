@@ -191,6 +191,7 @@ define(function (require) {
       const poi = new POIsProvider(layerParams);
       const displayName = layerParams.displayName || layerParams.savedSearchLabel;
       const options = {
+        chartData,
         displayName,
         layerGroup: layerParams.layerGroup || '<b> POI Overlays </b> ',
         color: layerParams.color,

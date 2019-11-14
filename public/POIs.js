@@ -24,6 +24,7 @@ define(function (require) {
     const SearchSource = Private(SearchSourceProvider);
     const queryFilter = Private(FilterBarQueryFilterProvider);
     const geoFilter = Private(require('plugins/enhanced_tilemap/vislib/geoFilter'));
+    const BaseMarker = require('./vislib/marker_types/base_marker');
     require('./lib/leaflet.markercluster/leaflet.markercluster');
 
     /**
@@ -302,24 +303,60 @@ define(function (require) {
     POIs.prototype._createLayer = function (hits, geoType, options) {
       let layer = null;
       const self = this;
+
+      function makePoints(aggs) {
+        let points = {};
+
+        const markerList = [];
+        aggs.forEach(function (agg, index) {
+          const myIcon = L.divIcon({ html: '<div class="clustergroup0 leaflet-marker-icon marker-cluster marker-cluster-medium' +
+          'leaflet-zoom-animated leaflet-clickable" tabindex="0" style="margin-left: -20px; margin-top: -20px; width: 40px;' +
+          'height: 40px; z-index: 233;"><div><span>' + agg.properties.value + '</span></div></div>' });
+          const marker = L.marker(new L.LatLng(agg.properties.center[0], agg.properties.center[1]), { icon: myIcon });
+          marker.count = agg.properties.value;
+          //marker.sentiment = agg.sentiment_avg.value;
+          marker.bindPopup('' + agg.properties.value);
+          markerList.push(marker);
+        });
+        return markerList;
+      };
+
       if ('geo_point' === geoType) {
         // const markers = _.map(hits, hit => {
         //   return self._createMarker(hit, options);
         // });
 
-        layer = L.markerClusterGroup({
-          chunkedLoading: true,
-          showCoverageOnHover: true
-        });
+        // layer = L.markerClusterGroup({
+        //   chunkedLoading: true,
+        //   showCoverageOnHover: true
+        // });
 
-        _.map(hits, hit => {
-          layer.addLayer(self._createMarker(hit, options));
-        });
+        if (options.chartData.geoJson.features) {
 
 
-        //layer = new MarkerClusterProvider(this._map, hits);
+          layer = L.markerClusterGroup({
+            chunkedLoading: true,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: true,
+            iconCreateFunction: function (cluster) {
+              //Grouping the cluster returned by the server, if
+              var markers = cluster.getAllChildMarkers();
+              var markerCount = 0;
+              markers.forEach(function (m) {
+                markerCount = markerCount + m.count;
+              });
+              return new L.DivIcon({ html: '<div class="clustergroup0 leaflet-marker-icon marker-cluster marker-cluster-medium' +
+              'leaflet-zoom-animated leaflet-clickable" tabindex="0" style="margin-left: -20px; margin-top: -20px; width: 40px;' +
+              'height: 40px; z-index: 233;"><div><span>' + options.agg.properties.value + '</span></div></div>' });
+            }
 
-        layer.destroy = () => console.log('Hello'); //TODO add destroy method// layer.forEach(self._removeMouseEventsGeoPoint);
+          });
+
+          layer.addLayers(makePoints(options.chartData.geoJson.features));
+          //layer = new MarkerClusterProvider(this._map, hits);
+
+          layer.destroy = () => console.log('Hello'); //TODO add destroy method// layer.forEach(self._removeMouseEventsGeoPoint);
+        }
       } else if ('geo_shape' === geoType) {
         const shapes = _.map(hits, hit => {
           const geometry = _.get(hit, `_source[${self.geoField}]`);

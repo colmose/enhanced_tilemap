@@ -15,7 +15,7 @@
 	 * L.MarkerClusterGroup extends L.FeatureGroup by clustering the markers contained within
 	 */
 
-  let MarkerClusterGroup = L.MarkerClusterGroup = L.FeatureGroup.extend({
+  const MarkerClusterGroup = L.MarkerClusterGroup = L.FeatureGroup.extend({
 
     options: {
       maxClusterRadius: 80, //A cluster will cover at most this many pixels from its center
@@ -85,7 +85,7 @@
       };
 
       // Hook the appropriate animation methods.
-      let animate = L.DomUtil.TRANSITION && this.options.animate;
+      const animate = L.DomUtil.TRANSITION && this.options.animate;
       L.extend(this, animate ? this._withAnimation : this._noAnimation);
       // Remember which MarkerCluster class to instantiate (animated or not).
       this._markerCluster = animate ? L.MarkerCluster : L.MarkerClusterNonAnimated;
@@ -216,13 +216,13 @@
         m;
 
       if (this._map) {
-        let started = (new Date()).getTime();
+        const started = (new Date()).getTime();
         var process = L.bind(function () {
-          let start = (new Date()).getTime();
+          const start = (new Date()).getTime();
           for (; offset < l; offset++) {
             if (chunked && offset % 200 === 0) {
               // every couple hundred markers, instrument the time elapsed since processing started:
-              let elapsed = (new Date()).getTime() - start;
+              const elapsed = (new Date()).getTime() - start;
               if (elapsed > chunkInterval) {
                 break; // been working too hard, time to take a break :-)
               }
@@ -295,7 +295,7 @@
 
         process();
       } else {
-        let needsClustering = this._needsClustering;
+        const needsClustering = this._needsClustering;
 
         for (; offset < l; offset++) {
           m = layersArray[offset];
@@ -457,7 +457,7 @@
 
     //Override FeatureGroup.getBounds as it doesn't work
     getBounds: function () {
-      let bounds = new L.LatLngBounds();
+      const bounds = new L.LatLngBounds();
 
       if (this._topClusterLevel) {
         bounds.extend(this._topClusterLevel._bounds);
@@ -502,7 +502,7 @@
 
     //Overrides LayerGroup.getLayers
     getLayers: function () {
-      let layers = [];
+      const layers = [];
       this.eachLayer(function (l) {
         layers.push(l);
       });
@@ -702,7 +702,7 @@
 
     _childMarkerMoved: function (e) {
       if (!this._ignoreMove && !e.target.__dragStart) {
-        let isPopupOpen = e.target._popup && e.target._popup.isOpen();
+        const isPopupOpen = e.target._popup && e.target._popup.isOpen();
 
         this._moveChild(e.target, e.oldLatLng, e.latlng);
 
@@ -721,7 +721,7 @@
     },
 
     _childMarkerDragEnd: function (e) {
-      let dragStart = e.target.__dragStart;
+      const dragStart = e.target.__dragStart;
       delete e.target.__dragStart;
       if (dragStart) {
         this._moveChild(e.target, dragStart, e.target._latlng);
@@ -818,7 +818,7 @@
 
     //Default functionality
     _defaultIconCreateFunction: function (cluster) {
-      let childCount = cluster.getChildCount();
+      const childCount = cluster.getChildCount();
 
       let c = ' marker-cluster-';
       if (childCount < 10) {
@@ -876,7 +876,7 @@
     },
 
     _showCoverage: function (e) {
-      let map = this._map;
+      const map = this._map;
       if (this._inZoomAnimation) {
         return;
       }
@@ -927,7 +927,7 @@
         return;
       }
 
-      let newBounds = this._getExpandedVisibleBounds();
+      const newBounds = this._getExpandedVisibleBounds();
 
       this._topClusterLevel._recursivelyRemoveChildrenFromMap(this._currentShownBounds, Math.floor(this._map.getMinZoom()), this._zoom, newBounds);
       this._topClusterLevel._recursivelyAddChildrenToMap(null, Math.round(this._map._zoom), newBounds);
@@ -994,14 +994,14 @@
         //Try find a marker close by to form a new cluster with
         closest = gridUnclustered[zoom].getNearObject(markerPoint);
         if (closest) {
-          let parent = closest.__parent;
+          const parent = closest.__parent;
           if (parent) {
             this._removeLayer(closest, false);
           }
 
           //Create new cluster with these 2 in it
 
-          let newCluster = new this._markerCluster(this, zoom, closest, layer);
+          const newCluster = new this._markerCluster(this, zoom, closest, layer);
           gridClusters[zoom].addObject(newCluster, this._map.project(newCluster._cLatLng, zoom));
           closest.__parent = newCluster;
           layer.__parent = newCluster;
@@ -1061,7 +1061,7 @@
 
     //Merge and split any existing clusters that are too big or small
     _mergeSplitClusters: function () {
-      let mapZoom = Math.round(this._map._zoom);
+      const mapZoom = Math.round(this._map._zoom);
 
       //In case we are starting to split before the animation finished
       this._processQueue();
@@ -1104,7 +1104,7 @@
 		 * @private
 		 */
     _checkBoundsMaxLat: function (bounds) {
-      let maxLat = this._maxLat;
+      const maxLat = this._maxLat;
 
       if (maxLat !== undefined) {
         if (bounds.getNorth() >= maxLat) {
@@ -1125,7 +1125,7 @@
       } else if (newCluster._childCount === 2) {
         newCluster._addToMap();
 
-        let markers = newCluster.getAllChildMarkers();
+        const markers = newCluster.getAllChildMarkers();
         this._featureGroup.removeLayer(markers[0]);
         this._featureGroup.removeLayer(markers[1]);
       } else {
@@ -1168,7 +1168,7 @@
 		 * @private
 		 */
     _overrideMarkerIcon: function (layer) {
-      let icon = layer.options.icon = this.options.iconCreateFunction({
+      const icon = layer.options.icon = this.options.iconCreateFunction({
         getChildCount: function () {
           return 1;
         },
@@ -1335,7 +1335,7 @@
       //Animate all of the markers in the clusters to move to their cluster center point
       cluster._recursivelyAnimateChildrenInAndAddSelfToMap(bounds, minZoom, previousZoomLevel + 1, newZoomLevel);
 
-      let me = this;
+      const me = this;
 
       //Update the opacity (If we immediately set it they won't animate)
       this._forceLayout();
@@ -1347,7 +1347,7 @@
 
         //This cluster stopped being a cluster before the timeout fired
         if (cluster._childCount === 1) {
-          let m = cluster._markers[0];
+          const m = cluster._markers[0];
           //If we were in a cluster animation at the time then the opacity and position of our child could be wrong now, so fix it
           this._ignoreMove = true;
           m.setLatLng(m.getLatLng());
@@ -1386,7 +1386,7 @@
     return new L.MarkerClusterGroup(options);
   };
 
-  let MarkerCluster = L.MarkerCluster = L.Marker.extend({
+  const MarkerCluster = L.MarkerCluster = L.Marker.extend({
     options: L.Icon.prototype.options,
 
     initialize: function (group, zoom, a, b) {
@@ -1465,7 +1465,7 @@
     },
 
     getBounds: function () {
-      let bounds = new L.LatLngBounds();
+      const bounds = new L.LatLngBounds();
       bounds.extend(this._bounds);
       return bounds;
     },
@@ -1534,7 +1534,7 @@
 		 * @private
 		 */
     _resetBounds: function () {
-      let bounds = this._bounds;
+      const bounds = this._bounds;
 
       if (bounds._southWest) {
         bounds._southWest.lat = Infinity;
@@ -1668,7 +1668,7 @@
 
           //Add our child markers at startPos (so they can be animated out)
           for (let i = c._markers.length - 1; i >= 0; i--) {
-            let nm = c._markers[i];
+            const nm = c._markers[i];
 
             if (!bounds.contains(nm._latlng)) {
               continue;
@@ -1695,7 +1695,7 @@
     _recursivelyRestoreChildPositions: function (zoomLevel) {
       //Fix positions of child markers
       for (let i = this._markers.length - 1; i >= 0; i--) {
-        let nm = this._markers[i];
+        const nm = this._markers[i];
         if (nm._backupLatlng) {
           nm.setLatLng(nm._backupLatlng);
           delete nm._backupLatlng;
@@ -1802,7 +1802,7 @@
 
   L.Marker.include({
     clusterHide: function () {
-      let backup = this.options.opacity;
+      const backup = this.options.opacity;
       this.setOpacity(0);
       this.options.opacity = backup;
       return this;
@@ -1920,7 +1920,7 @@
     },
 
     _getCoord: function (x) {
-      let coord = Math.floor(x / this._cellSize);
+      const coord = Math.floor(x / this._cellSize);
       return isFinite(coord) ? coord : x;
     },
 
@@ -2048,7 +2048,7 @@
           i;
 
         for (i = latLngs.length - 1; i >= 0; i--) {
-          let pt = latLngs[i];
+          const pt = latLngs[i];
           if (maxLat === false || pt.lat > maxLat) {
             maxLatPt = pt;
             maxLat = pt.lat;
@@ -2075,7 +2075,7 @@
           maxPt = maxLngPt;
         }
 
-        let ch = [].concat(this.buildConvexHull([minPt, maxPt], latLngs),
+        const ch = [].concat(this.buildConvexHull([minPt, maxPt], latLngs),
           this.buildConvexHull([maxPt, minPt], latLngs));
         return ch;
       }
@@ -2666,7 +2666,7 @@
 		 * @returns {L.Marker}
 		 */
     refreshIconOptions: function (options, directlyRefreshClusters) {
-      let icon = this.options.icon;
+      const icon = this.options.icon;
 
       L.setOptions(icon, options);
 
