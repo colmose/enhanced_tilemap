@@ -171,6 +171,8 @@ define(function (require) {
 
           aggSearchSource.aggs(function () {
             options.vis.requesting();
+            const precision = options.dsl[2].aggs.filtered_geohash.geohash_grid.precision;
+            if (precision >= 3) options.dsl[2].aggs.filtered_geohash.geohash_grid.precision -= 1;
             return options.dsl;
           });
           aggSearchSource.source({
@@ -436,7 +438,7 @@ define(function (require) {
             });
 
             self._createMarker(feature, options);
-            marker.numberOfDocuments = markerCount;
+            //marker.numberOfDocuments = markerCount;
             //marker.sentiment = agg.sentiment_avg.value;
             //marker.bindPopup('' + marker.numberOfDocuments); // this is where tooltip popups are added
             markerList.push(marker);
@@ -446,7 +448,7 @@ define(function (require) {
             centerLat = Number(centerLatAndLong[0]);
             centerLon = Number(centerLatAndLong[1]);
             const marker = self._createMarker(feature, options);
-            marker.numberOfDocuments = markerCount;
+            // marker.numberOfDocuments = markerCount;
             //marker.sentiment = agg.sentiment_avg.value;
             //marker.bindPopup('' + markerCount); // this is where tooltip popups are added
             markerList.push(marker);
@@ -466,26 +468,28 @@ define(function (require) {
         // });
 
         if (options.aggFeatures || hits) {
-          layer = L.markerClusterGroup({
-            maxClusterRadius: 80,
-            animateAddingMarkers: false,
-            chunkedLoading: true,
-            spiderfyOnMaxZoom: true,
-            showCoverageOnHover: false,
-            iconCreateFunction: function (cluster) {
-              //Grouping the cluster returned by the server, if
-              const markers = cluster.getAllChildMarkers();
-              let numberOfDocuments = 0;
-              markers.forEach(function (m) {
-                console.log(m.numberOfDocuments);
-                numberOfDocuments += m.numberOfDocuments;
-              });
-              return markerClusteringIcon(20, 100);
-            }
-          });
+          
+
+          // layer = L.markerClusterGroup({
+          //   maxClusterRadius: 80,
+          //   animateAddingMarkers: false,
+          //   chunkedLoading: true,
+          //   spiderfyOnMaxZoom: true,
+          //   showCoverageOnHover: false,
+          //   iconCreateFunction: function (cluster) {
+          //     //Grouping the cluster returned by the server, if
+          //     const markers = cluster.getAllChildMarkers();
+          //     let numberOfDocuments = 0;
+          //     markers.forEach(function (m) {
+          //       console.log(m.numberOfDocuments);
+          //       numberOfDocuments += m.numberOfDocuments;
+          //     });
+          //     return markerClusteringIcon(20, 100);
+          //   }
+          // });
 
           const featuresForLayer = makePoints(hits).concat(makePoints(options.aggFeatures));
-          layer.addLayers(featuresForLayer);
+          layer = new L.FeatureGroup(featuresForLayer);
 
           layer.destroy = () => layer.clearLayers(); //TODO add destroy method// layer.forEach(self._removeMouseEventsGeoPoint);
         }
