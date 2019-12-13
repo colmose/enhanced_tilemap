@@ -24,6 +24,8 @@ define(function (require) {
     const SearchSource = Private(SearchSourceProvider);
     const queryFilter = Private(FilterBarQueryFilterProvider);
     const geoFilter = Private(require('plugins/enhanced_tilemap/vislib/geoFilter'));
+    const MarkerClusterProvider = Private(require('./vislib/marker_cluster'));
+    //const MarkerCluster = require('leaflet.markercluster');
 
     /**
      * Points of Interest
@@ -154,7 +156,7 @@ define(function (require) {
             searchSource.query(savedSearch.searchSource.get('query'));
             searchSource.filter(createMapExtentFilter(options.mapExtentFilter));
           }
-          searchSource.size(this.limit);
+          searchSource.size(10000);
           searchSource.source({
             includes: _.compact(_.flatten([this.geoField, this.popupFields])),
             excludes: []
@@ -302,11 +304,20 @@ define(function (require) {
       let layer = null;
       const self = this;
       if ('geo_point' === geoType) {
-        const markers = _.map(hits, hit => {
-          return self._createMarker(hit, options);
+        // const markers = _.map(hits, hit => {
+        //   return self._createMarker(hit, options);
+        // });
+
+
+        layer = L.markerClusterGroup();
+        _.map(hits, hit => {
+          layer.addLayer(self._createMarker(hit, options));
         });
-        layer = new L.FeatureGroup(markers);
-        layer.destroy = () => markers.forEach(self._removeMouseEventsGeoPoint);
+
+
+        //layer = new MarkerClusterProvider(this._map, hits);
+
+        layer.destroy = () => console.log('Hello'); // layer.forEach(self._removeMouseEventsGeoPoint);
       } else if ('geo_shape' === geoType) {
         const shapes = _.map(hits, hit => {
           const geometry = _.get(hit, `_source[${self.geoField}]`);
