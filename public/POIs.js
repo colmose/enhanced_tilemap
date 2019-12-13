@@ -1,11 +1,13 @@
 const _ = require('lodash');
 const L = require('leaflet');
 import { searchIcon } from 'plugins/enhanced_tilemap/vislib/icons/searchIcon';
+import { markerClusteringIcon } from 'plugins/enhanced_tilemap/vislib/icons/markerClusteringIcon';
 import { toLatLng } from 'plugins/enhanced_tilemap/vislib/geo_point';
 import { SearchSourceProvider } from 'ui/courier/data_source/search_source';
 import { FilterBarQueryFilterProvider } from 'ui/filter_bar/query_filter';
 import utils from 'plugins/enhanced_tilemap/utils';
 import { decodeGeoHash } from 'ui/utils/decode_geo_hash';
+import { VislibVisTypeBuildChartDataProvider } from 'ui/vislib_vis_type/build_chart_data';
 
 //react modal
 import React from 'react';
@@ -25,8 +27,11 @@ define(function (require) {
     const SearchSource = Private(SearchSourceProvider);
     const queryFilter = Private(FilterBarQueryFilterProvider);
     const geoFilter = Private(require('plugins/enhanced_tilemap/vislib/geoFilter'));
-    const BaseMarker = require('./vislib/marker_types/base_marker');
+    const RespProcessor = require('plugins/enhanced_tilemap/resp_processor');
+    const buildChartData = Private(VislibVisTypeBuildChartDataProvider);
     require('./lib/leaflet.markercluster/leaflet.markercluster');
+
+    const MAX_DOC_THRESHOLD = 1000;
 
     /**
      * Points of Interest
@@ -79,35 +84,6 @@ define(function (require) {
           layer {ILayer}: Leaflet ILayer containing the results of the saved search
      */
     POIs.prototype.getLayer = function (options, callback) {
-
-      const getFiltersForIndividualDocsRequest = (aggs) => {
-        const MAX_DOC_THRESHOLD = 400;
-        const individualDocFilters = [];
-
-        let numberOfDocsToRetrieve = 0;
-        for (let i = aggs.length - 1; numberOfDocsToRetrieve < 400 && i >= 0; i--) {
-          if (numberOfDocsToRetrieve < MAX_DOC_THRESHOLD) {
-
-            const decodedGeoHash = decodeGeoHash(aggs[i].key);
-
-            const topLeft = {
-              lat: decodedGeoHash.latitude[1],
-              lon: decodedGeoHash.longitude[0]
-            };
-            const bottomRight = {
-              lat: decodedGeoHash.latitude[0],
-              lon: decodedGeoHash.longitude[1]
-            };
-
-            const geoBoundingBoxFilter = geoFilter.rectFilter(this.geoField, 'geo_point', topLeft, bottomRight);
-            individualDocFilters.push(geoBoundingBoxFilter);
-            numberOfDocsToRetrieve += aggs[i].doc_count;
-          }
-        };
-        return individualDocFilters;
-      };
-
-
       const self = this;
       savedSearches.get(this.savedSearchId).then(savedSearch => {
         const geoFields = getGeoFields(savedSearch);
@@ -146,16 +122,16 @@ define(function (require) {
 
           //********************************************************** */
           //Aggregation searchSource request
-          const searchSource = new SearchSource();
+          const aggSearchSource = new SearchSource();
 
           let allFilters = [];
           if (this.draggedState) {
             //For drag and drop overlays
             if (this.isInitialDragAndDrop) {
               //Use filters from search drag and drop
-              searchSource.inherits(false);
-              searchSource.index(this.draggedState.index);
-              searchSource.query(this.draggedState.query[0]);
+              aggSearchSource.inherits(false);
+              aggSearchSource.index(this.draggedState.index);
+              aggSearchSource.query(this.draggedState.query[0]);
               allFilters = this.draggedState.filters;
 
               //adding html of filters from dragged dashboard
@@ -165,39 +141,39 @@ define(function (require) {
                 });
 
               allFilters.push(createMapExtentFilter(options.mapExtentFilter));
-              searchSource.filter(allFilters);
+              aggSearchSource.filter(allFilters);
             } else {
               //When drag and drop layer already exists, i.e. ES response watcher
-              searchSource.inherits(false);
-              searchSource.index(this.params.draggedStateInitial.index);
-              searchSource.query(this.params.draggedStateInitial.query[0]);
+              aggSearchSource.inherits(false);
+              aggSearchSource.index(this.params.draggedStateInitial.index);
+              aggSearchSource.query(this.params.draggedStateInitial.query[0]);
               allFilters = this.params.draggedStateInitial.filters;
               allFilters.pop(); // remove previous map extent filter
               allFilters.push(createMapExtentFilter(options.mapExtentFilter));
-              searchSource.filter(allFilters);
+              aggSearchSource.filter(allFilters);
               options.filterPopupContent = this.params.filterPopupContent; //adding filter popup content from drop
             }
             //for vis params overlays
           } else if (this.syncFilters) {
-            searchSource.inherits(savedSearch.searchSource);
+            aggSearchSource.inherits(savedSearch.searchSource);
             allFilters = queryFilter.getFilters();
             allFilters.push(createMapExtentFilter(options.mapExtentFilter));
-            searchSource.filter(allFilters);
+            aggSearchSource.filter(allFilters);
           } else {
             //Do not filter POIs by time so can not inherit from rootSearchSource
-            searchSource.inherits(false);
-            searchSource.index(savedSearch.searchSource._state.index);
-            searchSource.query(savedSearch.searchSource.get('query'));
+            aggSearchSource.inherits(false);
+            aggSearchSource.index(savedSearch.searchSource._state.index);
+            aggSearchSource.query(savedSearch.searchSource.get('query'));
             allFilters = createMapExtentFilter(options.mapExtentFilter);
           }
 
-          searchSource.filter(allFilters);
+          aggSearchSource.filter(allFilters);
 
-          searchSource.aggs(function () {
+          aggSearchSource.aggs(function () {
             options.vis.requesting();
             return options.dsl;
           });
-          searchSource.source({
+          aggSearchSource.source({
             includes: _.compact(_.flatten([this.geoField, this.popupFields])),
             excludes: []
           });
@@ -211,24 +187,46 @@ define(function (require) {
           //Removal of previous too many documents warning when map is changed to a new extent
           options.$legend.innerHTML = '';
 
-          searchSource.fetch()
+          aggSearchSource.fetch()
             .then(aggSearchResp => {
 
-              console.log('RESP FROM AGGREAGATION: ', aggSearchResp);
+              const respProcessor = new RespProcessor(options.vis, buildChartData, utils);
+              const aggChartData = respProcessor.process(aggSearchResp);
               //********************************************************** */
               //individual document searchSource request
-              const geoHashFiltersForIndividualDocs =
-                getFiltersForIndividualDocsRequest(aggSearchResp.aggregations[2].filtered_geohash.buckets);
 
+              const individualDocFilters = {
+                bool: {
+                  should: []
+                }
+              };
 
+              let totalNumberOfDocsToRetrieve = 0;
+              options.aggFeatures = aggChartData.geoJson.features;
+              for (let i = options.aggFeatures.length - 1; i >= 0; i--) {
+                const documentsInCurrentFeature = options.aggFeatures[i].properties.value;
+                if ((totalNumberOfDocsToRetrieve + documentsInCurrentFeature) < MAX_DOC_THRESHOLD) {
+
+                  const rectangle = options.aggFeatures[i].properties.rectangle;
+                  const topLeft = { lat: rectangle[3][0], lon: rectangle[3][1] };
+                  const bottomRight = { lat: rectangle[1][0], lon: rectangle[1][1] };
+
+                  const geoBoundingBoxFilter = geoFilter.rectFilter(this.geoField, 'geo_point', topLeft, bottomRight);
+                  individualDocFilters.bool.should.push(geoBoundingBoxFilter);
+                  totalNumberOfDocsToRetrieve += options.aggFeatures[i].properties.value;
+                  options.aggFeatures.splice(i, 1);
+                };
+              };
+
+              const docSearchSource = new SearchSource();
               let allFilters = [];
               if (this.draggedState) {
                 //For drag and drop overlays
                 if (this.isInitialDragAndDrop) {
                   //Use filters from search drag and drop
-                  searchSource.inherits(false);
-                  searchSource.index(this.draggedState.index);
-                  searchSource.query(this.draggedState.query[0]);
+                  docSearchSource.inherits(false);
+                  docSearchSource.index(this.draggedState.index);
+                  docSearchSource.query(this.draggedState.query[0]);
                   allFilters = this.draggedState.filters;
 
                   //adding html of filters from dragged dashboard
@@ -238,48 +236,55 @@ define(function (require) {
                     });
 
                   allFilters.push(createMapExtentFilter(options.mapExtentFilter));
-                  searchSource.filter(allFilters);
+                  //docSearchSource.filter(allFilters);
                 } else {
                   //When drag and drop layer already exists, i.e. ES response watcher
-                  searchSource.inherits(false);
-                  searchSource.index(this.params.draggedStateInitial.index);
-                  searchSource.query(this.params.draggedStateInitial.query[0]);
+                  docSearchSource.inherits(false);
+                  docSearchSource.index(this.params.draggedStateInitial.index);
+                  docSearchSource.query(this.params.draggedStateInitial.query[0]);
                   allFilters = this.params.draggedStateInitial.filters;
                   allFilters.pop(); // remove previous map extent filter
                   allFilters.push(createMapExtentFilter(options.mapExtentFilter));
-                  searchSource.filter(allFilters);
+                  //docSearchSource.filter(allFilters);
                   options.filterPopupContent = this.params.filterPopupContent; //adding filter popup content from drop
                 }
                 //for vis params overlays
               } else if (this.syncFilters) {
-                searchSource.inherits(savedSearch.searchSource);
+                docSearchSource.inherits(savedSearch.searchSource);
                 allFilters = queryFilter.getFilters();
                 allFilters.push(createMapExtentFilter(options.mapExtentFilter));
-                searchSource.filter(allFilters);
+                //docSearchSource.filter(allFilters);
               } else {
                 //Do not filter POIs by time so can not inherit from rootSearchSource
-                searchSource.inherits(false);
-                searchSource.index(savedSearch.searchSource._state.index);
-                searchSource.query(savedSearch.searchSource.get('query'));
+                docSearchSource.inherits(false);
+                docSearchSource.index(savedSearch.searchSource._state.index);
+                docSearchSource.query(savedSearch.searchSource.get('query'));
                 allFilters.push(createMapExtentFilter(options.mapExtentFilter));
               };
 
-              allFilters = allFilters.concat(geoHashFiltersForIndividualDocs);
+              allFilters = allFilters.concat(individualDocFilters);
 
-              searchSource.filter(allFilters);
+              docSearchSource.filter(allFilters);
+              docSearchSource.size(MAX_DOC_THRESHOLD);
 
-              searchSource.source({
+              docSearchSource.source({
                 includes: _.compact(_.flatten([this.geoField, this.popupFields])),
                 excludes: []
               });
 
-              searchSource.fetch()
-                .then(searchResp => {
+              // docSearchSource.aggs(function () {
+              //   options.vis.requesting();
+              //   return options.dsl;
+              // });
+
+              docSearchSource.fetch()
+                .then(docSearchResp => {
 
                   // if (searchResp.hits.total > this.limit) {
                   //   options.$legend.innerHTML = tooManyDocsInfo;
                   //   options.tooManyDocs = poiLimitToDisplay;
                   // };
+
 
                   //Too many documents warning for each specific layer
                   options.$legend.tooManyDocsInfo = '';
@@ -301,7 +306,7 @@ define(function (require) {
                     this.params.displayName = options.displayName;
                   };
 
-                  //callback(self._createLayer(searchResp.hits.hits, this.geoType, options));
+                  callback(self._createLayer(docSearchResp.hits.hits, this.geoType, options));
                 });
             });
         };
@@ -407,21 +412,45 @@ define(function (require) {
       let layer = null;
       const self = this;
 
-      function makePoints(aggs) {
+      function makePoints(features) {
         let points = {};
 
         const markerList = [];
-        aggs.forEach(function (agg, index) {
-          const myIcon = L.divIcon({
-            html: '<div class="clustergroup0 leaflet-marker-icon marker-cluster marker-cluster-medium' +
-              'leaflet-zoom-animated leaflet-clickable" tabindex="0" style="margin-left: -20px; margin-top: -20px; width: 40px;' +
-              'height: 40px; z-index: 233;"><div><span>' + agg.properties.value + '</span></div></div>'
-          });
-          const marker = L.marker(new L.LatLng(agg.properties.center[0], agg.properties.center[1]), { icon: myIcon });
-          marker.count = agg.properties.value;
-          //marker.sentiment = agg.sentiment_avg.value;
-          marker.bindPopup('' + agg.properties.value);
-          markerList.push(marker);
+        features.forEach(function (feature, index) {
+          const markerCount = _.get(feature, 'properties.value', 1);
+          let centerLat;
+          let centerLon;
+
+          if (_.has(feature, 'properties.geohash')) {
+            //aggs
+            centerLat = feature.geometry.coordinates[1];
+            centerLon = feature.geometry.coordinates[0];
+
+            // const myIcon = L.divIcon({
+            //   html: '<div class="clustergroup0 leaflet-marker-icon marker-cluster marker-cluster-medium' +
+            //     'leaflet-zoom-animated leaflet-clickable" tabindex="0" style="margin-left: -20px; margin-top: -20px; width: 40px;' +
+            //     'height: 40px; z-index: 233;"><div><span>' + markerCount + '</span></div></div>'
+            // });
+            const marker = L.marker([centerLat, centerLon], {
+              icon: markerClusteringIcon()
+            });
+
+            self._createMarker(feature, options);
+            marker.numberOfDocuments = markerCount;
+            //marker.sentiment = agg.sentiment_avg.value;
+            //marker.bindPopup('' + marker.numberOfDocuments); // this is where tooltip popups are added
+            markerList.push(marker);
+          } else {
+            //docs
+            const centerLatAndLong = feature._source.location; //.split(',');
+            centerLat = Number(centerLatAndLong[0]);
+            centerLon = Number(centerLatAndLong[1]);
+            const marker = self._createMarker(feature, options);
+            marker.numberOfDocuments = markerCount;
+            //marker.sentiment = agg.sentiment_avg.value;
+            //marker.bindPopup('' + markerCount); // this is where tooltip popups are added
+            markerList.push(marker);
+          };
         });
         return markerList;
       };
@@ -436,33 +465,29 @@ define(function (require) {
         //   showCoverageOnHover: true
         // });
 
-        if (options.chartData.geoJson.features) {
-
-
+        if (options.aggFeatures || hits) {
           layer = L.markerClusterGroup({
+            maxClusterRadius: 80,
+            animateAddingMarkers: false,
             chunkedLoading: true,
             spiderfyOnMaxZoom: true,
-            showCoverageOnHover: true,
+            showCoverageOnHover: false,
             iconCreateFunction: function (cluster) {
               //Grouping the cluster returned by the server, if
-              var markers = cluster.getAllChildMarkers();
-              var markerCount = 0;
+              const markers = cluster.getAllChildMarkers();
+              let numberOfDocuments = 0;
               markers.forEach(function (m) {
-                markerCount = markerCount + m.count;
+                console.log(m.numberOfDocuments);
+                numberOfDocuments += m.numberOfDocuments;
               });
-              return new L.DivIcon({
-                html: '<div class="clustergroup0 leaflet-marker-icon marker-cluster marker-cluster-medium' +
-                  'leaflet-zoom-animated leaflet-clickable" tabindex="0" style="margin-left: -20px; margin-top: -20px; width: 40px;' +
-                  'height: 40px; z-index: 233;"><div><span>' + options.agg.properties.value + '</span></div></div>'
-              });
+              return markerClusteringIcon(20, 100);
             }
-
           });
 
-          layer.addLayers(makePoints(options.chartData.geoJson.features));
-          //layer = new MarkerClusterProvider(this._map, hits);
+          const featuresForLayer = makePoints(hits).concat(makePoints(options.aggFeatures));
+          layer.addLayers(featuresForLayer);
 
-          layer.destroy = () => console.log('Hello'); //TODO add destroy method// layer.forEach(self._removeMouseEventsGeoPoint);
+          layer.destroy = () => layer.clearLayers(); //TODO add destroy method// layer.forEach(self._removeMouseEventsGeoPoint);
         }
       } else if ('geo_shape' === geoType) {
         const shapes = _.map(hits, hit => {
@@ -647,9 +672,11 @@ define(function (require) {
 
     POIs.prototype._popupContent = function (hit) {
       let dlContent = '';
-      this.popupFields.forEach(function (field) {
-        dlContent += `<dt>${field}</dt><dd>${hit._source[field]}</dd>`;
-      });
+      if (_.has(hit, '_source')) {
+        this.popupFields.forEach(function (field) {
+          dlContent += `<dt>${field}</dt><dd>${hit._source[field]}</dd>`;
+        });
+      }
       return `<dl>${dlContent}</dl>`;
     };
 

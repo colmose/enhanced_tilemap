@@ -18,8 +18,8 @@ define(function (require) {
       GeohashGridMarker.Super.apply(this, arguments);
 
       // super min and max from all chart data
-      const min = this.geoJson.properties.allmin;
-      const max = this.geoJson.properties.allmax;
+      // let min = this.geoJson.properties.allmin;
+      // let max = this.geoJson.properties.allmax;
 
       this._createMarkerGroup({
         pointToLayer: function (feature, latlng) {
