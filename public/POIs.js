@@ -432,7 +432,7 @@ define(function (require) {
             //     'height: 40px; z-index: 233;"><div><span>' + markerCount + '</span></div></div>'
             // });
             const marker = L.marker([centerLat, centerLon], {
-              icon: markerClusteringIcon()
+              icon: markerClusteringIcon(markerCount)
             });
 
             self._createMarker(feature, options);
