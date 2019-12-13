@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import { decodeGeoHash } from 'ui/utils/decode_geo_hash';
 
 define(function (require) {
   const L = require('leaflet');
@@ -75,6 +76,7 @@ define(function (require) {
       }
       return aggConfig;
     },
+
     /*
      * @param rect {Array of Array(lat, lon)} grid rectangle
      * created from KIBANA_HOME/src/ui/public/agg_response/geo_json/rows_to_features.js

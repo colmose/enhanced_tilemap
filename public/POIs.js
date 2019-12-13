@@ -5,6 +5,7 @@ import { toLatLng } from 'plugins/enhanced_tilemap/vislib/geo_point';
 import { SearchSourceProvider } from 'ui/courier/data_source/search_source';
 import { FilterBarQueryFilterProvider } from 'ui/filter_bar/query_filter';
 import utils from 'plugins/enhanced_tilemap/utils';
+import { decodeGeoHash } from 'ui/utils/decode_geo_hash';
 
 //react modal
 import React from 'react';
@@ -78,6 +79,35 @@ define(function (require) {
           layer {ILayer}: Leaflet ILayer containing the results of the saved search
      */
     POIs.prototype.getLayer = function (options, callback) {
+
+      const getFiltersForIndividualDocsRequest = (aggs) => {
+        const MAX_DOC_THRESHOLD = 400;
+        const individualDocFilters = [];
+
+        let numberOfDocsToRetrieve = 0;
+        for (let i = aggs.length - 1; numberOfDocsToRetrieve < 400 && i >= 0; i--) {
+          if (numberOfDocsToRetrieve < MAX_DOC_THRESHOLD) {
+
+            const decodedGeoHash = decodeGeoHash(aggs[i].key);
+
+            const topLeft = {
+              lat: decodedGeoHash.latitude[1],
+              lon: decodedGeoHash.longitude[0]
+            };
+            const bottomRight = {
+              lat: decodedGeoHash.latitude[0],
+              lon: decodedGeoHash.longitude[1]
+            };
+
+            const geoBoundingBoxFilter = geoFilter.rectFilter(this.geoField, 'geo_point', topLeft, bottomRight);
+            individualDocFilters.push(geoBoundingBoxFilter);
+            numberOfDocsToRetrieve += aggs[i].doc_count;
+          }
+        };
+        return individualDocFilters;
+      };
+
+
       const self = this;
       savedSearches.get(this.savedSearchId).then(savedSearch => {
         const geoFields = getGeoFields(savedSearch);
@@ -88,6 +118,7 @@ define(function (require) {
         }
 
         const processLayer = () => {
+
           //creating icon and title from search for map and layerControl
           options.displayName = options.displayName || savedSearch.title;
 
@@ -113,8 +144,11 @@ define(function (require) {
             return geoFilter.rectFilter(rect.geoField.fieldname, rect.geoField.geotype, bounds.top_left, bounds.bottom_right);
           }
 
+          //********************************************************** */
+          //Aggregation searchSource request
           const searchSource = new SearchSource();
 
+          let allFilters = [];
           if (this.draggedState) {
             //For drag and drop overlays
             if (this.isInitialDragAndDrop) {
@@ -122,7 +156,7 @@ define(function (require) {
               searchSource.inherits(false);
               searchSource.index(this.draggedState.index);
               searchSource.query(this.draggedState.query[0]);
-              const allFilters = this.draggedState.filters;
+              allFilters = this.draggedState.filters;
 
               //adding html of filters from dragged dashboard
               Promise.resolve(joinExplanation.constructFilterIconMessage(allFilters, this.draggedState.query))
@@ -137,7 +171,7 @@ define(function (require) {
               searchSource.inherits(false);
               searchSource.index(this.params.draggedStateInitial.index);
               searchSource.query(this.params.draggedStateInitial.query[0]);
-              const allFilters = this.params.draggedStateInitial.filters;
+              allFilters = this.params.draggedStateInitial.filters;
               allFilters.pop(); // remove previous map extent filter
               allFilters.push(createMapExtentFilter(options.mapExtentFilter));
               searchSource.filter(allFilters);
@@ -146,7 +180,7 @@ define(function (require) {
             //for vis params overlays
           } else if (this.syncFilters) {
             searchSource.inherits(savedSearch.searchSource);
-            const allFilters = queryFilter.getFilters();
+            allFilters = queryFilter.getFilters();
             allFilters.push(createMapExtentFilter(options.mapExtentFilter));
             searchSource.filter(allFilters);
           } else {
@@ -154,9 +188,15 @@ define(function (require) {
             searchSource.inherits(false);
             searchSource.index(savedSearch.searchSource._state.index);
             searchSource.query(savedSearch.searchSource.get('query'));
-            searchSource.filter(createMapExtentFilter(options.mapExtentFilter));
+            allFilters = createMapExtentFilter(options.mapExtentFilter);
           }
-          searchSource.size(10000);
+
+          searchSource.filter(allFilters);
+
+          searchSource.aggs(function () {
+            options.vis.requesting();
+            return options.dsl;
+          });
           searchSource.source({
             includes: _.compact(_.flatten([this.geoField, this.popupFields])),
             excludes: []
@@ -172,34 +212,97 @@ define(function (require) {
           options.$legend.innerHTML = '';
 
           searchSource.fetch()
-            .then(searchResp => {
+            .then(aggSearchResp => {
 
-              if (searchResp.hits.total > this.limit) {
-                options.$legend.innerHTML = tooManyDocsInfo;
-                options.tooManyDocs = poiLimitToDisplay;
-              };
+              console.log('RESP FROM AGGREAGATION: ', aggSearchResp);
+              //********************************************************** */
+              //individual document searchSource request
+              const geoHashFiltersForIndividualDocs =
+                getFiltersForIndividualDocsRequest(aggSearchResp.aggregations[2].filtered_geohash.buckets);
 
-              //Too many documents warning for each specific layer
-              options.$legend.tooManyDocsInfo = '';
+
+              let allFilters = [];
               if (this.draggedState) {
-                options.$legend.searchIcon = `<i>${options.displayName}</i> ${searchIcon}`;
+                //For drag and drop overlays
+                if (this.isInitialDragAndDrop) {
+                  //Use filters from search drag and drop
+                  searchSource.inherits(false);
+                  searchSource.index(this.draggedState.index);
+                  searchSource.query(this.draggedState.query[0]);
+                  allFilters = this.draggedState.filters;
+
+                  //adding html of filters from dragged dashboard
+                  Promise.resolve(joinExplanation.constructFilterIconMessage(allFilters, this.draggedState.query))
+                    .then(filterPopupContent => {
+                      options.filterPopupContent = filterPopupContent;
+                    });
+
+                  allFilters.push(createMapExtentFilter(options.mapExtentFilter));
+                  searchSource.filter(allFilters);
+                } else {
+                  //When drag and drop layer already exists, i.e. ES response watcher
+                  searchSource.inherits(false);
+                  searchSource.index(this.params.draggedStateInitial.index);
+                  searchSource.query(this.params.draggedStateInitial.query[0]);
+                  allFilters = this.params.draggedStateInitial.filters;
+                  allFilters.pop(); // remove previous map extent filter
+                  allFilters.push(createMapExtentFilter(options.mapExtentFilter));
+                  searchSource.filter(allFilters);
+                  options.filterPopupContent = this.params.filterPopupContent; //adding filter popup content from drop
+                }
+                //for vis params overlays
+              } else if (this.syncFilters) {
+                searchSource.inherits(savedSearch.searchSource);
+                allFilters = queryFilter.getFilters();
+                allFilters.push(createMapExtentFilter(options.mapExtentFilter));
+                searchSource.filter(allFilters);
               } else {
-                options.$legend.searchIcon = `${options.displayName} ${searchIcon}`;
+                //Do not filter POIs by time so can not inherit from rootSearchSource
+                searchSource.inherits(false);
+                searchSource.index(savedSearch.searchSource._state.index);
+                searchSource.query(savedSearch.searchSource.get('query'));
+                allFilters.push(createMapExtentFilter(options.mapExtentFilter));
               };
 
-              //Storing this information on the params object for use
-              //in ES Response watcher
-              if (this.isInitialDragAndDrop) {
-                this.params.filterPopupContent = options.filterPopupContent;
-                this.params.searchIcon = options.$legend.searchIcon;
-                this.params.savedDashboardTitleInitial = this.params.savedDashboardTitle;
-                this.params.draggedStateInitial = this.params.draggedState;
-                this.params.geoField = this.geoField;
-                this.params.geoType = this.geoType;
-                this.params.displayName = options.displayName;
-              };
+              allFilters = allFilters.concat(geoHashFiltersForIndividualDocs);
 
-              callback(self._createLayer(searchResp.hits.hits, this.geoType, options));
+              searchSource.filter(allFilters);
+
+              searchSource.source({
+                includes: _.compact(_.flatten([this.geoField, this.popupFields])),
+                excludes: []
+              });
+
+              searchSource.fetch()
+                .then(searchResp => {
+
+                  // if (searchResp.hits.total > this.limit) {
+                  //   options.$legend.innerHTML = tooManyDocsInfo;
+                  //   options.tooManyDocs = poiLimitToDisplay;
+                  // };
+
+                  //Too many documents warning for each specific layer
+                  options.$legend.tooManyDocsInfo = '';
+                  if (this.draggedState) {
+                    options.$legend.searchIcon = `<i>${options.displayName}</i> ${searchIcon}`;
+                  } else {
+                    options.$legend.searchIcon = `${options.displayName} ${searchIcon}`;
+                  };
+
+                  //Storing this information on the params object for use
+                  //in ES Response watcher
+                  if (this.isInitialDragAndDrop) {
+                    this.params.filterPopupContent = options.filterPopupContent;
+                    this.params.searchIcon = options.$legend.searchIcon;
+                    this.params.savedDashboardTitleInitial = this.params.savedDashboardTitle;
+                    this.params.draggedStateInitial = this.params.draggedState;
+                    this.params.geoField = this.geoField;
+                    this.params.geoType = this.geoType;
+                    this.params.displayName = options.displayName;
+                  };
+
+                  //callback(self._createLayer(searchResp.hits.hits, this.geoType, options));
+                });
             });
         };
 
@@ -309,9 +412,11 @@ define(function (require) {
 
         const markerList = [];
         aggs.forEach(function (agg, index) {
-          const myIcon = L.divIcon({ html: '<div class="clustergroup0 leaflet-marker-icon marker-cluster marker-cluster-medium' +
-          'leaflet-zoom-animated leaflet-clickable" tabindex="0" style="margin-left: -20px; margin-top: -20px; width: 40px;' +
-          'height: 40px; z-index: 233;"><div><span>' + agg.properties.value + '</span></div></div>' });
+          const myIcon = L.divIcon({
+            html: '<div class="clustergroup0 leaflet-marker-icon marker-cluster marker-cluster-medium' +
+              'leaflet-zoom-animated leaflet-clickable" tabindex="0" style="margin-left: -20px; margin-top: -20px; width: 40px;' +
+              'height: 40px; z-index: 233;"><div><span>' + agg.properties.value + '</span></div></div>'
+          });
           const marker = L.marker(new L.LatLng(agg.properties.center[0], agg.properties.center[1]), { icon: myIcon });
           marker.count = agg.properties.value;
           //marker.sentiment = agg.sentiment_avg.value;
@@ -345,9 +450,11 @@ define(function (require) {
               markers.forEach(function (m) {
                 markerCount = markerCount + m.count;
               });
-              return new L.DivIcon({ html: '<div class="clustergroup0 leaflet-marker-icon marker-cluster marker-cluster-medium' +
-              'leaflet-zoom-animated leaflet-clickable" tabindex="0" style="margin-left: -20px; margin-top: -20px; width: 40px;' +
-              'height: 40px; z-index: 233;"><div><span>' + options.agg.properties.value + '</span></div></div>' });
+              return new L.DivIcon({
+                html: '<div class="clustergroup0 leaflet-marker-icon marker-cluster marker-cluster-medium' +
+                  'leaflet-zoom-animated leaflet-clickable" tabindex="0" style="margin-left: -20px; margin-top: -20px; width: 40px;' +
+                  'height: 40px; z-index: 233;"><div><span>' + options.agg.properties.value + '</span></div></div>'
+              });
             }
 
           });

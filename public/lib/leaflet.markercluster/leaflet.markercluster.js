@@ -1,3 +1,9 @@
+/* eslint-disable no-nested-ternary */
+/* eslint-disable guard-for-in */
+/* eslint-disable max-len */
+/* eslint-disable prefer-const */
+/* eslint-disable one-var */
+/* eslint-disable memoryleaks */
 /*
  * Leaflet.markercluster 1.4.1+master.94f9815,
  * Provides Beautiful Animated Marker Clustering functionality for Leaflet, a JS library for interactive maps.
@@ -9,7 +15,7 @@
     typeof define === 'function' && define.amd ? define(['exports'], factory) :
       (factory((global.Leaflet = global.Leaflet || {}, global.Leaflet.markercluster = global.Leaflet.markercluster || {})));
 }(this, (function (exports) {
-  'use strict';
+
 
   /*
 	 * L.MarkerClusterGroup extends L.FeatureGroup by clustering the markers contained within
@@ -217,7 +223,7 @@
 
       if (this._map) {
         const started = (new Date()).getTime();
-        var process = L.bind(function () {
+        const process = L.bind(function () {
           const start = (new Date()).getTime();
           for (; offset < l; offset++) {
             if (chunked && offset % 200 === 0) {
@@ -555,7 +561,7 @@
         callback = function () { };
       }
 
-      var showMarker = function () {
+      const showMarker = function () {
         if ((layer._icon || layer.__parent._icon) && !this._inZoomAnimation) {
           this._map.off('moveend', showMarker, this);
           this.off('animationend', showMarker, this);
@@ -833,7 +839,7 @@
     },
 
     _bindEvents: function () {
-      let map = this._map,
+      const map = this._map,
         spiderfyOnMaxZoom = this.options.spiderfyOnMaxZoom,
         showCoverageOnHover = this.options.showCoverageOnHover,
         zoomToBoundsOnClick = this.options.zoomToBoundsOnClick;
@@ -860,8 +866,8 @@
       }
 
       if (bottomCluster._zoom === this._maxZoom &&
-				bottomCluster._childCount === cluster._childCount &&
-				this.options.spiderfyOnMaxZoom) {
+        bottomCluster._childCount === cluster._childCount &&
+        this.options.spiderfyOnMaxZoom) {
 
         // All child markers are contained in a single cluster from this._maxZoom to this cluster.
         cluster.spiderfy();
@@ -1794,10 +1800,10 @@
 
   /*
 	* Extends L.Marker to include two extra methods: clusterHide and clusterShow.
-	* 
+	*
 	* They work as setOpacity(0) and setOpacity(1) respectively, but
 	* don't overwrite the options.opacity
-	* 
+	*
 	*/
 
   L.Marker.include({
@@ -1907,7 +1913,7 @@
                 obj = cell[k];
                 dist = this._sqDist(objectPoint[L.Util.stamp(obj)], point);
                 if (dist < closestDistSq ||
-									dist <= closestDistSq && closest === null) {
+                  dist <= closestDistSq && closest === null) {
                   closestDistSq = dist;
                   closest = obj;
                 }
@@ -1934,7 +1940,7 @@
   /* Copyright (c) 2012 the authors listed at the following URL, and/or
 	the authors of referenced articles or incorporated external code:
 	http://en.literateprograms.org/Quickhull_(Javascript)?action=history&offset=20120410175256
-	
+
 	Permission is hereby granted, free of charge, to any person obtaining
 	a copy of this software and associated documentation files (the
 	"Software"), to deal in the Software without restriction, including
@@ -1942,10 +1948,10 @@
 	distribute, sublicense, and/or sell copies of the Software, and to
 	permit persons to whom the Software is furnished to do so, subject to
 	the following conditions:
-	
+
 	The above copyright notice and this permission notice shall be
 	included in all copies or substantial portions of the Software.
-	
+
 	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 	EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 	MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -1953,7 +1959,7 @@
 	CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 	TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 	SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-	
+
 	Retrieved from: http://en.literateprograms.org/Quickhull_(Javascript)?oldid=18434
 	*/
 
@@ -2018,13 +2024,13 @@
 
         if (t.maxPoint) { // if there is still a point "outside" the base line
           convexHullBaseLines =
-						convexHullBaseLines.concat(
-						  this.buildConvexHull([baseLine[0], t.maxPoint], t.newPoints)
-						);
+            convexHullBaseLines.concat(
+              this.buildConvexHull([baseLine[0], t.maxPoint], t.newPoints)
+            );
           convexHullBaseLines =
-						convexHullBaseLines.concat(
-						  this.buildConvexHull([t.maxPoint, baseLine[1]], t.newPoints)
-						);
+            convexHullBaseLines.concat(
+              this.buildConvexHull([t.maxPoint, baseLine[1]], t.newPoints)
+            );
           return convexHullBaseLines;
         } else {  // if there is no more point "outside" the base line, the current base line is part of the convex hull
           return [baseLine[0]];

@@ -191,7 +191,8 @@ define(function (require) {
       const poi = new POIsProvider(layerParams);
       const displayName = layerParams.displayName || layerParams.savedSearchLabel;
       const options = {
-        chartData,
+        vis: $scope.vis,
+        dsl: $scope.vis.aggs.toDsl(),
         displayName,
         layerGroup: layerParams.layerGroup || '<b> POI Overlays </b> ',
         color: layerParams.color,
