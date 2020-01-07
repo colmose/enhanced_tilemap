@@ -1,6 +1,7 @@
 import d3 from 'd3';
 import _ from 'lodash';
 import $ from 'jquery';
+import uuid from 'uuid';
 import chrome from 'ui/chrome';
 import { Binder } from 'ui/binder';
 import MapProvider from 'plugins/enhanced_tilemap/vislib/_map';
@@ -263,7 +264,10 @@ define(function (require) {
           close: layer.close,
           tooManyDocs: layer.tooManyDocs
         };
-        map.addPOILayer(layer.$legend.searchIcon, layer, layer.layerGroup, options);
+
+        layerParams.oldId = layerParams.currentId || 'starterId';
+        layerParams.currentId = uuid.v1();
+        map.addPOILayer(layerParams.oldId, layerParams.currentId, layer, layer.layerGroup, options);
       });
     }
 
@@ -317,7 +321,7 @@ define(function (require) {
         map.saturateTiles(visParams.isDesaturated);
 
         //POI overlays from vis params
-        map.clearPOILayers();
+        map.clearLayers(map.poiLayers);
         $scope.vis.params.overlays.savedSearches.forEach(initPOILayer);
 
         drawWfsOverlays();
@@ -409,7 +413,8 @@ define(function (require) {
 
     function drawWfsOverlays() {
       //clear all wfs overlays before redrawing
-      map.clearWfsOverlays();
+      //does not happen on ES response watcher
+      map.clearLayersByType(map.vectorOverlays, 'WFS');
 
       if ($scope.vis.params.overlays.wfsOverlays &&
         $scope.vis.params.overlays.wfsOverlays.length === 0) {
@@ -434,7 +439,7 @@ define(function (require) {
 
     function drawWmsOverlays() {
 
-      const prevState = map.clearWMSOverlays();
+      const prevState = map.clearLayersAndReturnPrevState(map.wmsOverlays);
       if ($scope.vis.params.overlays.wmsOverlays.length === 0) {
         return;
       }
@@ -539,7 +544,8 @@ define(function (require) {
                 isVisible,
                 nonTiled: _.get(layerParams, 'nonTiled', false)
               };
-              return map.addWmsOverlay(layerParams.url, name, wmsOptions, layerOptions);
+
+              return map.addWmsOverlay(layerParams.url, name, wmsOptions, layerOptions, uuid.v1());
             });
         });
       });
@@ -718,8 +724,8 @@ define(function (require) {
 
     map.leafletMap.on('toolbench:poiFilter', function (e) {
       const poiLayers = [];
-      Object.keys(map._poiLayers).forEach(function (key) {
-        poiLayers.push(map._poiLayers[key]);
+      Object.keys(map.poiLayers).forEach(function (key) {
+        poiLayers.push(map.poiLayers[key]);
       });
       map._callbacks.poiFilter({
         chart: map._chartData,
