@@ -230,7 +230,7 @@ define(function (require) {
       const prevState = {};
       Object.keys(overlayArray).forEach(key => {
         const layer = overlayArray[key];
-        prevState[key] = this.map.hasLayer(layer);
+        prevState[key] = this.leafletMap.hasLayer(layer);
         this._layerControl.removeLayer(layer);
         this.leafletMap.removeLayer(layer);
       });
@@ -258,9 +258,9 @@ define(function (require) {
       if (_.has(this.poiLayers, oldId)) {
         const layer = this.poiLayers[oldId];
         this.poiLayers[oldId].destroy();
-        isVisible = this.map.hasLayer(layer);
+        isVisible = this.leafletMap.hasLayer(layer);
         this._layerControl.removeLayer(layer);
-        this.map.removeLayer(layer);
+        this.leafletMap.removeLayer(layer);
         delete this.poiLayers[oldId];
       }
 
@@ -394,7 +394,6 @@ define(function (require) {
       this._layerControl.addOverlay(this._filters, 'Applied Filters');
     };
 
-    
     TileMapMap.prototype.addWmsOverlay = function (url, name, wmsOptions, layerOptions, id) {
 
       let overlay = null;
@@ -516,17 +515,17 @@ define(function (require) {
       const self = this;
 
       this.leafletMap.on('groupLayerControl:removeClickedLayer', (e) => {
-        const layerName = e.name;
-        if (_.has(this.poiLayers, layerName)) {
-          const layer = this.poiLayers[layerName];
-          this.poiLayers[layerName].destroy();
-          this.map.removeLayer(layer);
-          delete this.poiLayers[layerName];
+        const currentId = e.layer.currentId;
+        if (_.has(this.poiLayers, currentId)) {
+          const layer = this.poiLayers[currentId];
+          this.poiLayers[currentId].destroy();
+          this.leafletMap.removeLayer(layer);
+          delete this.poiLayers[currentId];
         }
       });
 
       this.leafletMap.on('etm:select-feature-vector', function (e) {
-        self._callbacks.polygonVector({
+        self._callbacks.polygonVeleafletMapctor({
           args: e.args,
           params: self._attr,
           points: e.geojson.geometry.coordinates

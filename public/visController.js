@@ -253,10 +253,7 @@ define(function (require) {
 
       //Element rendered in Leaflet Library
       const $legend = $element.find('a.leaflet-control-layers-toggle').get(0);
-
-      if ($legend) {
-        options.$legend = $legend;
-      }
+      if ($legend) options.$legend = $legend;
 
       poi.getLayer(options, function (layer) {
         const options = {
@@ -265,9 +262,14 @@ define(function (require) {
           tooManyDocs: layer.tooManyDocs
         };
 
+        // Storing Id with vis object
         layerParams.oldId = layerParams.currentId || 'starterId';
         layerParams.currentId = uuid.v1();
-        map.addPOILayer(layerParams.oldId, layerParams.currentId, layer, layer.layerGroup, options);
+        // Storing Id in leaflet layer for map events
+        layer.oldId = layerParams.oldId;
+        layer.currentId = layerParams.currentId;
+
+        map.addPOILayer(layer.oldId, layer.currentId, layer, layer.layerGroup, options);
       });
     }
 
@@ -618,7 +620,7 @@ define(function (require) {
     map.leafletMap.on('groupLayerControl:removeClickedLayer', function (e) {
       $scope.vis.params.overlays.dragAndDropPoiLayers =
         _.filter($scope.vis.params.overlays.dragAndDropPoiLayers, function (dragAndDropPoiLayer) {
-          return dragAndDropPoiLayer.searchIcon !== e.name;
+          return dragAndDropPoiLayer.currentId !== e.layer.currentId;
         });
     });
 
