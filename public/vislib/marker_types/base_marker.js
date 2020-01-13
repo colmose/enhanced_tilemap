@@ -24,7 +24,7 @@ define(function (require) {
         min: _.get(geoJson, 'properties.allmin', 0),
         max: _.get(geoJson, 'properties.allmax', 1)
       };
-      this.isVisible = _.get(params, 'prevState.isVisible', true);
+      this.isVisible = _.get(params, 'prevState.isVisible', false);
 
       if (params.prevState) {
         //Scale threshold to have same shape as previous zoom level
@@ -289,12 +289,7 @@ define(function (require) {
       this.layerControl.addOverlay(this._markerGroup, 'Aggregation');
 
       // the uiState takes precedence
-      const presentInUiState = this.uiState.get('Aggregation');
-      if (presentInUiState) {
-        this.isVisible = true;
-      } else if (presentInUiState === false) {
-        this.isVisible = false;
-      }
+      this.isVisible = this.uiState.get('Aggregation');
 
       if (this.isVisible) this.leafletMap.addLayer(this._markerGroup);
 

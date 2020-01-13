@@ -139,6 +139,7 @@ define(function (require) {
           dragAndDropPoiLayer.savedDashboardTitle = savedDashboard.lastSavedTitle;
           dragAndDropPoiLayer.layerGroup = '<b> Drag and Drop Overlays </b>';
           dragAndDropPoiLayer.isInitialDragAndDrop = true;
+          if (!dragAndDropPoiLayer.id) dragAndDropPoiLayer.id = uuid.v1();
           // initialize on drop
           initPOILayer(dragAndDropPoiLayer);
 
@@ -241,6 +242,7 @@ define(function (require) {
       const poi = new POIsProvider(layerParams);
       const displayName = layerParams.displayName || layerParams.savedSearchLabel;
       const options = {
+        id: layerParams.id,
         displayName,
         layerGroup: layerParams.layerGroup || '<b> POI Overlays </b> ',
         color: layerParams.color,
@@ -262,14 +264,7 @@ define(function (require) {
           tooManyDocs: layer.tooManyDocs
         };
 
-        // Storing Id with vis object
-        layerParams.oldId = layerParams.currentId || 'starterId';
-        layerParams.currentId = uuid.v1();
-        // Storing Id in leaflet layer for map events
-        layer.oldId = layerParams.oldId;
-        layer.currentId = layerParams.currentId;
-
-        map.addPOILayer(layer.oldId, layer.currentId, layer, layer.layerGroup, options);
+        map.addPOILayer(layer.id, layer, layer.layerGroup, options);
       });
     }
 
@@ -285,6 +280,7 @@ define(function (require) {
       };
 
       const optionsWithDefaults = {
+        id: options.id,
         color: _.get(options, 'color', '#008800'),
         size: _.get(options, 'size', 'm'),
         popupFields,
@@ -299,7 +295,7 @@ define(function (require) {
       };
 
       const vector = new VectorProvider(geoJsonCollection).getLayer(optionsWithDefaults);
-      map.addVectorLayer(layerName, vector, optionsWithDefaults);
+      map.addVectorLayer(optionsWithDefaults.id, layerName, vector, optionsWithDefaults);
 
     };
 
@@ -425,6 +421,7 @@ define(function (require) {
       _.each($scope.vis.params.overlays.wfsOverlays, wfsOverlay => {
 
         const options = {
+          id: _.get(wfsOverlay, 'id', wfsOverlay.displayName),
           color: _.get(wfsOverlay, 'color', '#10aded'),
           popupFields: _.get(wfsOverlay, 'popupFields', ''),
           layerGroup: '<b> WFS Overlays </b>',
@@ -547,7 +544,7 @@ define(function (require) {
                 nonTiled: _.get(layerParams, 'nonTiled', false)
               };
 
-              return map.addWmsOverlay(layerParams.url, name, wmsOptions, layerOptions, uuid.v1());
+              return map.addWmsOverlay(layerParams.url, name, wmsOptions, layerOptions, layerParams.id);
             });
         });
       });
@@ -627,10 +624,21 @@ define(function (require) {
     // saving checkbox status to dashboard uiState
     map.leafletMap.on('overlayadd', function (e) {
       map.saturateWMSTiles();
-      $scope.vis.getUiState().set(e.name, !!e.name);
+      if (map._markers && e.name === 'Aggregation') {
+        map._markers.show();
+      };
+      const uiStatekey = e.layer.id || e.name;
+      console.log('Setting current Id in UiState', uiStatekey);
+      $scope.vis.getUiState().set(uiStatekey, !!uiStatekey);
     });
+
     map.leafletMap.on('overlayremove', function (e) {
-      $scope.vis.getUiState().set(e.name, false);
+      if (map._markers && e.name === 'Aggregation') {
+        map._markers.hide();
+      }
+      const uiStatekey = e.layer.id || e.name;
+      console.log('Removing current Id in UiState', uiStatekey);
+      $scope.vis.getUiState().set(uiStatekey, false);
     });
 
     map.leafletMap.on('moveend', _.debounce(function setZoomCenter(ev) {

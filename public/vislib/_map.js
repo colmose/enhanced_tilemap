@@ -1,4 +1,5 @@
 import { markerIcon } from 'plugins/enhanced_tilemap/vislib/markerIcon';
+import { is } from 'bluebird';
 
 define(function (require) {
   return function MapFactory(Private) {
@@ -90,7 +91,8 @@ define(function (require) {
             point,
             { icon: markerIcon(color) }));
       });
-      this.leafletMap.addLayer(this._drawnItems);
+      if (this.uiState.get('Markers')) this.leafletMap.addLayer(this._drawnItems);
+
       this._layerControl.addOverlay(this._drawnItems, 'Markers');
 
       //https://github.com/Leaflet/Leaflet.draw
@@ -249,28 +251,23 @@ define(function (require) {
       });
     };
 
-    TileMapMap.prototype.addPOILayer = function (oldId, currentId, layer, layerGroup, options) {
-      let isVisible = true;
+    TileMapMap.prototype.addPOILayer = function (id, layer, layerGroup, options) {
+      let isVisible = false;
 
       //remove layer if it already exists
       //this is required on page load with the option to have user defined POI user
       //name in edit mode as there are two watchers, i.e. vis.params and esResponse
-      if (_.has(this.poiLayers, oldId)) {
-        const layer = this.poiLayers[oldId];
-        this.poiLayers[oldId].destroy();
+      if (_.has(this.poiLayers, id)) {
+        const layer = this.poiLayers[id];
+        this.poiLayers[id].destroy();
         isVisible = this.leafletMap.hasLayer(layer);
         this._layerControl.removeLayer(layer);
         this.leafletMap.removeLayer(layer);
-        delete this.poiLayers[oldId];
+        delete this.poiLayers[id];
       }
 
       // the uiState takes precedence
-      const presentInUiState = this.uiState.get(oldId);
-      if (presentInUiState) {
-        isVisible = true;
-      } else if (presentInUiState === false) {
-        isVisible = false;
-      }
+      if (this.uiState.get(id)) isVisible = true;
 
       if (isVisible) {
         this.leafletMap.addLayer(layer);
@@ -288,7 +285,7 @@ define(function (require) {
         this._layerControl.addOverlay(layer, layer.displayName, layerGroup || '<b> POI Overlays</b>', options);
       }
 
-      this.poiLayers[currentId] = layer;
+      this.poiLayers[id] = layer;
 
       //Add tool to l.draw.toolbar so users can filter by POIs
       if (Object.keys(this.poiLayers).length === 1) {
@@ -298,26 +295,13 @@ define(function (require) {
       }
     };
 
-    TileMapMap.prototype.addVectorLayer = function (layerName, layer, options) {
-      let isVisible;
+    TileMapMap.prototype.addVectorLayer = function (id, layerName, layer, options) {
 
       this._layerControl.addOverlay(layer, layerName, options.layerGroup);
+      if (this.uiState.get(id)) this.leafletMap.addLayer(layer);
 
-
-      // the uiState takes precedence
-      const presentInUiState = this.uiState.get(layerName);
-      if (presentInUiState) {
-        isVisible = true;
-      } else if (presentInUiState === false) {
-        isVisible = false;
-      }
-
-      if (isVisible) {
-        this.leafletMap.addLayer(layer);
-      }
-
-      this.vectorOverlays[layerName] = layer;
-      this.vectorOverlays[layerName].type = options.type;
+      this.vectorOverlays[id] = layer;
+      this.vectorOverlays[id].type = options.type;
 
       //Add tool to l.draw.toolbar so users can filter by vector layers
       if (Object.keys(this.vectorOverlays).length === 1) {
@@ -515,12 +499,12 @@ define(function (require) {
       const self = this;
 
       this.leafletMap.on('groupLayerControl:removeClickedLayer', (e) => {
-        const currentId = e.layer.currentId;
-        if (_.has(this.poiLayers, currentId)) {
-          const layer = this.poiLayers[currentId];
-          this.poiLayers[currentId].destroy();
+        const id = e.layer.id;
+        if (_.has(this.poiLayers, id)) {
+          const layer = this.poiLayers[id];
+          this.poiLayers[id].destroy();
           this.leafletMap.removeLayer(layer);
-          delete this.poiLayers[currentId];
+          delete this.poiLayers[id];
         }
       });
 
@@ -547,18 +531,6 @@ define(function (require) {
           chart: self._chartData,
           deletedLayers: e.layers,
         });
-      });
-
-      this.leafletMap.on('overlayadd', function (e) {
-        if (self._markers && e.name === 'Aggregation') {
-          self._markers.show();
-        }
-      });
-
-      this.leafletMap.on('overlayremove', function (e) {
-        if (self._markers && e.name === 'Aggregation') {
-          self._markers.hide();
-        }
       });
     };
 

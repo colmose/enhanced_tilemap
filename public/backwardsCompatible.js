@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import uuid from 'uuid';
 
 /**
  * As new features are added, sometimes the visualization parameters needs to change
