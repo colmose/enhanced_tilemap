@@ -91,7 +91,11 @@ define(function (require) {
             point,
             { icon: markerIcon(color) }));
       });
-      if (this.uiState.get('Markers')) this.leafletMap.addLayer(this._drawnItems);
+
+      let isVisible = true;
+      if (this.uiState.get('Markers') === false) isVisible = false;
+
+      if (isVisible) this.leafletMap.addLayer(this._drawnItems);
 
       this._layerControl.addOverlay(this._drawnItems, 'Markers');
 

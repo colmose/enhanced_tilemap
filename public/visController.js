@@ -628,7 +628,6 @@ define(function (require) {
         map._markers.show();
       };
       const uiStatekey = e.layer.id || e.name;
-      console.log('Setting current Id in UiState', uiStatekey);
       $scope.vis.getUiState().set(uiStatekey, !!uiStatekey);
     });
 
@@ -637,7 +636,6 @@ define(function (require) {
         map._markers.hide();
       }
       const uiStatekey = e.layer.id || e.name;
-      console.log('Removing current Id in UiState', uiStatekey);
       $scope.vis.getUiState().set(uiStatekey, false);
     });
 
