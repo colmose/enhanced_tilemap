@@ -753,6 +753,7 @@
     const settings = input.data('minicolors-settings');
     const lastChange = input.data('minicolors-lastChange');
     let obj;
+    // eslint-disable-next-line no-unused-vars
     let sel;
     let i;
 

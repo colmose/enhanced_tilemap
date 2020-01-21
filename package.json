@@ -6,12 +6,16 @@
   },
   "scripts": {
     "test": "gulp test",
-    "testdev": "gulp testdev",
     "test:coverage": "gulp coverage",
+    "test:server": "gulp testserve",
+    "test:browser": "gulp testbrowser",
+    "test:dev": "gulp testdev",
     "start": "gulp dev",
-    "precommit": "gulp lint",
-    "build": "gulp build",
-    "sync": "gulp sync"
+    "sync": "gulp sync",
+    "precommit": "eslint public server index.js gulp.js",
+    "lint": "eslint public server index.js gulp.js",
+    "lintfix": "eslint --fix public server index.js gulp.js",
+    "build": "gulp build"
   },
   "dependencies": {
     "angularjs-dropdown-multiselect": "^2.0.0-beta.10",
@@ -23,13 +27,14 @@
     "leaflet.markercluster": "1.4.1",
     "leaflet.nontiledlayer": "1.0.7",
     "mgrs": "~1.0.0",
-    "scripting-interfaces": "sirensolutions/scripting-interfaces#c7cfc7fd899c7b4f492a79dabea254e9d07adcb4",
-    "xml2js": "^0.4.19"
+    "xml2js": "^0.4.19",
+    "scripting-interfaces": "sirensolutions/scripting-interfaces"
   },
   "devDependencies": {
     "babel-eslint": "^7.2.3",
     "bluebird": "^3.0.6",
     "eslint-config-siren": "sirensolutions/eslint-config",
+    "eslint-plugin-siren": "sirensolutions/eslint-plugin-siren",
     "gulp": "^4.0.2",
     "gulp-eslint": "^6.0.0",
     "gulp-if": "^2.0.2",

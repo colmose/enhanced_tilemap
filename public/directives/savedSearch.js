@@ -2,6 +2,7 @@ const _ = require('lodash');
 import { backwardsCompatible } from 'plugins/enhanced_tilemap/backwardsCompatible';
 import { SavedObjectRegistryProvider } from 'ui/saved_objects/saved_object_registry';
 import { uiModules } from 'ui/modules';
+import uuid from 'uuid';
 
 const module = uiModules.get('kibana');
 
@@ -16,8 +17,9 @@ define(function (require) {
         layer: '='
       },
       template: require('./savedSearch.html'),
-      link: function (scope, element, attrs) {
+      link: function (scope) {
         backwardsCompatible.updateSavedSearch(scope.layer);
+        if (!scope.layer.id) scope.layer.id = uuid.v1();
 
         scope.isGeoShape = function () {
           scope.layer.geoShape = false;
@@ -26,7 +28,7 @@ define(function (require) {
               geoFieldType.type === 'geo_shape') {
               scope.layer.geoShape = true;
               return false;
-            };
+            }
           });
         };
 

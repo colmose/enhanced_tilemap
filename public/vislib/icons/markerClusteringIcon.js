@@ -1,9 +1,9 @@
 const L = require('leaflet');
 
-export const markerClusteringIcon = function (thisClusterCount, maxDocCount) {
-  const MIN_DOC_COUNT = 1;
+export const markerClusteringIcon = function (thisClusterCount) { //, maxDocCount) {
+  // const MIN_DOC_COUNT = 1;
 
-  let iconSize = 'medium'; //set the marker size based on the min and max document count here
+  //  const iconSize = 'medium'; //set the marker size based on the min and max document count here
 
   // rename the "marker-cluster-small" class in the html below
 

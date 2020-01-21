@@ -1,6 +1,6 @@
-import d3 from 'd3';
+/* eslint-disable siren/memoryleaks */
 import _ from 'lodash';
-import $ from 'jquery';
+import uuid from 'uuid';
 import chrome from 'ui/chrome';
 import { Binder } from 'ui/binder';
 import MapProvider from 'plugins/enhanced_tilemap/vislib/_map';
@@ -24,7 +24,8 @@ define(function (require) {
   module.controller('KbnEnhancedTilemapVisController', function (
     kibiState, savedSearches, savedDashboards, dashboardGroups,
     $scope, $rootScope, $element, $timeout, joinExplanation,
-    Private, courier, config, getAppState, indexPatterns, $http, $injector) {
+    Private, courier, config, getAppState, indexPatterns, $http, $injector,
+    timefilter) {
     const buildChartData = Private(VislibVisTypeBuildChartDataProvider);
     const queryFilter = Private(FilterBarQueryFilterProvider);
     const callbacks = Private(require('plugins/enhanced_tilemap/callbacks'));
@@ -35,7 +36,6 @@ define(function (require) {
     const RespProcessor = require('plugins/enhanced_tilemap/resp_processor');
     const TileMapMap = Private(MapProvider);
     const ResizeChecker = Private(ResizeCheckerProvider);
-    const SearchTooltip = Private(require('plugins/enhanced_tilemap/tooltip/searchTooltip'));
     const VisTooltip = Private(require('plugins/enhanced_tilemap/tooltip/visTooltip'));
     const BoundsHelper = Private(require('plugins/enhanced_tilemap/vislib/DataBoundsHelper'));
     let map = null;
@@ -43,13 +43,20 @@ define(function (require) {
     let chartData = null;
     let tooltip = null;
     let tooltipFormatter = null;
+    let storedTime = _.cloneDeep(timefilter.time);
+    const appState = getAppState();
+    let storedState = {
+      filters: _.cloneDeep(appState.filters),
+      query: _.cloneDeep(appState.query)
+    };
+
     $scope.flags = {};
 
     backwardsCompatible.updateParams($scope.vis.params);
     createDragAndDropPoiLayers();
     appendMap();
     modifyToDsl();
-    setTooltipFormatter($scope.vis.params.tooltip);
+    setTooltipFormatter($scope.vis.params.tooltip, $scope.vis._siren);
     drawWfsOverlays();
 
     const shapeFields = $scope.vis.indexPattern.fields.filter(function (field) {
@@ -97,6 +104,9 @@ define(function (require) {
       };
     }
 
+    function getIndexPatternId() { return $scope.vis.indexPattern.id; }
+    function getSirenMeta() { return $scope.vis._siren; }
+
     async function addPOILayerFromDashboardWithModal(dashboardId) {
       const group = dashboardGroups.getGroup(dashboardId);
       if (group) {
@@ -111,7 +121,7 @@ define(function (require) {
 
           if (!savedSearchId) {
             return;
-          };
+          }
 
           const dragAndDropPoiLayer = await kibiState.getState(dashboardId);
           const index = await indexPatterns.get(dragAndDropPoiLayer.index);
@@ -127,6 +137,7 @@ define(function (require) {
           dragAndDropPoiLayer.savedDashboardTitle = savedDashboard.lastSavedTitle;
           dragAndDropPoiLayer.layerGroup = '<b> Drag and Drop Overlays </b>';
           dragAndDropPoiLayer.isInitialDragAndDrop = true;
+          if (!dragAndDropPoiLayer.id) dragAndDropPoiLayer.id = uuid.v1();
           // initialize on drop
           initPOILayer(dragAndDropPoiLayer);
 
@@ -134,15 +145,15 @@ define(function (require) {
           createDragAndDropPoiLayers();
           $scope.vis.params.overlays.dragAndDropPoiLayers.push(dragAndDropPoiLayer);
 
-        };
+        }
       }
-    };
+    }
 
     function createDragAndDropPoiLayers() {
       if (!$scope.vis.params.overlays.dragAndDropPoiLayers) {
         $scope.vis.params.overlays.dragAndDropPoiLayers = [];
       }
-    };
+    }
 
     function modifyToDsl() {
       $scope.vis.aggs.origToDsl = $scope.vis.aggs.toDsl;
@@ -166,6 +177,44 @@ define(function (require) {
       };
     }
 
+    //checking appstate and time filters to identify
+    //if map change was related to map event or
+    //a separate change on a dashboard OR from vis params
+    function _shouldAutoFitMapBoundsToData(calledFromVisParams = false) {
+      if (!$scope.vis.params.autoFitBoundsToData) {
+        return false;
+      }
+      const newTime = timefilter.time;
+      const appState = getAppState();
+      const newState = {
+        filters: appState.filters,
+        query: appState.query
+      };
+
+      const differentTimeOrState = !kibiState.compareStates(newState, storedState).stateEqual ||
+        !kibiState.compareTimes(newTime, storedTime);
+
+      if (calledFromVisParams || differentTimeOrState) {
+        storedTime = _.cloneDeep(newTime);
+        storedState = _.cloneDeep(newState);
+        return true;
+      }
+    }
+
+    function _doFitMapBoundsToData() {
+      if (_.has(chartData, 'searchSource')) {
+        const boundsHelper = new BoundsHelper(chartData.searchSource, getGeoField().fieldname);
+        boundsHelper.getBoundsOfEntireDataSelection($scope.vis)
+          .then(entireBounds => {
+            if (entireBounds) {
+              map.leafletMap.fitBounds(entireBounds);
+              //update uiState zoom so correct geohash precision will be used
+              $scope.vis.getUiState().set('mapZoom', map.leafletMap.getZoom());
+            }
+          });
+      }
+    }
+
     function aggFilter(field) {
       collar = utils.scaleBounds(
         map.mapBounds(),
@@ -175,7 +224,7 @@ define(function (require) {
       return filter;
     }
 
-    $scope.$watch('vis.aggs', function (resp) {
+    $scope.$watch('vis.aggs', function () {
       //'apply changes' creates new vis.aggs object - ensure toDsl is overwritten again
       if (!_.has($scope.vis.aggs, 'origToDsl')) {
         modifyToDsl();
@@ -185,7 +234,7 @@ define(function (require) {
     function getGeoBoundingBox() {
       const geoBoundingBox = utils.scaleBounds(map.mapBounds(), $scope.vis.params.collarScale);
       return { geoBoundingBox };
-    };
+    }
 
     function initPOILayer(layerParams) {
       const poi = new POIsProvider(layerParams);
@@ -193,6 +242,7 @@ define(function (require) {
       const options = {
         vis: $scope.vis,
         dsl: $scope.vis.aggs.toDsl(),
+        id: layerParams.id,
         displayName,
         layerGroup: layerParams.layerGroup || '<b> POI Overlays </b> ',
         color: layerParams.color,
@@ -205,10 +255,7 @@ define(function (require) {
 
       //Element rendered in Leaflet Library
       const $legend = $element.find('a.leaflet-control-layers-toggle').get(0);
-
-      if ($legend) {
-        options.$legend = $legend;
-      }
+      if ($legend) options.$legend = $legend;
 
       poi.getLayer(options, function (layer) {
         const options = {
@@ -216,11 +263,12 @@ define(function (require) {
           close: layer.close,
           tooManyDocs: layer.tooManyDocs
         };
-        map.addPOILayer(layer.$legend.searchIcon, layer, layer.layerGroup, options);
+
+        map.addPOILayer(layer.id, layer, layer.layerGroup, options);
       });
     }
 
-    function initVectorLayer(layerName, geoJsonCollection, options) {
+    function initVectorLayer(id, layerName, geoJsonCollection, options) {
 
       let popupFields = [];
       if (_.get(options, 'popupFields') === '' || !_.get(options, 'popupFields')) {
@@ -229,9 +277,10 @@ define(function (require) {
         popupFields = _.get(options, 'popupFields').split(',');
       } else {
         popupFields = [_.get(options, 'popupFields', [])];
-      };
+      }
 
       const optionsWithDefaults = {
+        id,
         color: _.get(options, 'color', '#008800'),
         size: _.get(options, 'size', 'm'),
         popupFields,
@@ -246,16 +295,16 @@ define(function (require) {
       };
 
       const vector = new VectorProvider(geoJsonCollection).getLayer(optionsWithDefaults);
-      map.addVectorLayer(layerName, vector, optionsWithDefaults);
+      map.addVectorLayer(id, layerName, vector, optionsWithDefaults);
 
-    };
+    }
 
 
     $scope.$watch('vis.params', function (visParams, oldParams) {
       if (visParams !== oldParams) {
         //When vis is first opened, vis.params gets updated with old context
         backwardsCompatible.updateParams($scope.vis.params);
-
+        if (_shouldAutoFitMapBoundsToData(true)) _doFitMapBoundsToData();
         $scope.flags.isVisibleSource = 'visParams';
         //remove mouse related heatmap events when moving to a different geohash type
         if (oldParams && oldParams.mapType === 'Heatmap') {
@@ -263,14 +312,14 @@ define(function (require) {
         }
 
         map._redrawBaseLayer(visParams.wms.url, visParams.wms.options, visParams.wms.enabled);
-        setTooltipFormatter(visParams.tooltip);
+        setTooltipFormatter(visParams.tooltip, $scope.vis._siren);
 
         draw();
 
         map.saturateTiles(visParams.isDesaturated);
 
         //POI overlays from vis params
-        map.clearPOILayers();
+        map.clearLayers(map.poiLayers);
         $scope.vis.params.overlays.savedSearches.forEach(initPOILayer);
 
         drawWfsOverlays();
@@ -279,20 +328,19 @@ define(function (require) {
     });
 
     $scope.$listen(queryFilter, 'update', function () {
-      setTooltipFormatter($scope.vis.params.tooltip);
+      setTooltipFormatter($scope.vis.params.tooltip, $scope.vis._siren);
     });
 
     $scope.$watch('esResponse', function (resp) {
       if (_.has(resp, 'aggregations')) {
         chartData = respProcessor.process(resp);
         chartData.searchSource = $scope.searchSource;
+        if (_shouldAutoFitMapBoundsToData()) _doFitMapBoundsToData();
         draw();
-
-      };
+      }
 
       //POI overlays - no need to clear all layers for this watcher
       $scope.vis.params.overlays.savedSearches.forEach(initPOILayer);
-
       //Drag and Drop POI Overlays - no need to clear all layers for this watcher
       if (_.has($scope, 'vis.params.overlays.dragAndDropPoiLayers')) {
         $scope.vis.params.overlays.dragAndDropPoiLayers.forEach(dragAndDrop => {
@@ -313,7 +361,7 @@ define(function (require) {
     function destroyKibiStateEvents() {
       kibiState.off('drop_on_graph');
       kibiState.off('drag_on_graph');
-    };
+    }
 
     function draw() {
       if (!chartData) {
@@ -333,9 +381,10 @@ define(function (require) {
         tooltipFormatter,
         _.get(chartData, 'valueFormatter', _.identity),
         collar);
+
     }
 
-    function setTooltipFormatter(tooltipParams) {
+    function setTooltipFormatter(tooltipParams, sirenMeta) {
       if (tooltip) {
         tooltip.destroy();
       }
@@ -350,7 +399,9 @@ define(function (require) {
           _.get(tooltipParams, 'options.visId'),
           geoField.fieldname,
           geoField.geotype,
-          options);
+          sirenMeta,
+          options
+        );
         tooltipFormatter = tooltip.getFormatter();
       } else {
         tooltipFormatter = Private(TileMapTooltipFormatterProvider);
@@ -359,38 +410,35 @@ define(function (require) {
     }
 
     function drawWfsOverlays() {
-      //clear all wfs overlays before redrawing
-      map.clearWfsOverlays();
 
       if ($scope.vis.params.overlays.wfsOverlays &&
         $scope.vis.params.overlays.wfsOverlays.length === 0) {
         return;
-      };
+      }
       _.each($scope.vis.params.overlays.wfsOverlays, wfsOverlay => {
 
         const options = {
           color: _.get(wfsOverlay, 'color', '#10aded'),
           popupFields: _.get(wfsOverlay, 'popupFields', ''),
-          layerGroup: '<b> WFS Overlays </b>',
-          type: 'WFS'
+          layerGroup: 'WFS Overlays'
         };
         const getFeatureRequest = `${wfsOverlay.url}request=GetFeature&typeNames=${wfsOverlay.layers}&outputFormat=json`;
 
         return $http.get(getFeatureRequest)
           .then(resp => {
-            initVectorLayer(wfsOverlay.displayName, resp.data, options);
+            initVectorLayer(wfsOverlay.id, wfsOverlay.displayName, resp.data, options);
           });
       });
-    };
+    }
 
     function drawWmsOverlays() {
-      $scope.flags.check = false;
-      const prevState = map.clearWMSOverlays();
+
+      const prevState = map.clearLayersAndReturnPrevState(map.wmsOverlays);
       if ($scope.vis.params.overlays.wmsOverlays.length === 0) {
         return;
       }
 
-      const wmsDrawAsync = $scope.vis.params.overlays.wmsOverlays.map(function (layerParams) {
+      $scope.vis.params.overlays.wmsOverlays.map(function (layerParams) {
         const wmsIndexId = _.get(layerParams, 'indexId', $scope.vis.indexPattern.id);
         return indexPatterns.get(wmsIndexId).then(function (indexPattern) {
           const source = new courier.SearchSource();
@@ -475,7 +523,7 @@ define(function (require) {
                 isVisible = prevState[name];
               } else {
                 isVisible = layerParams.isVisible;
-              };
+              }
 
               const presentInUiState = $scope.vis.getUiState().get(name);
               if (presentInUiState) {
@@ -490,15 +538,13 @@ define(function (require) {
                 isVisible,
                 nonTiled: _.get(layerParams, 'nonTiled', false)
               };
-              return map.addWmsOverlay(layerParams.url, name, wmsOptions, layerOptions);
+
+              return map.addWmsOverlay(layerParams.url, name, wmsOptions, layerOptions, layerParams.id);
             });
         });
       });
 
-      Promise.all(wmsDrawAsync).then(function () {
-        $scope.flags.check = true;
-      });
-    };
+    }
 
     function appendMap() {
       const initialMapState = utils.getMapStateFromVis($scope.vis);
@@ -511,7 +557,8 @@ define(function (require) {
         mapType: params.mapType,
         attr: params,
         editable: $scope.vis.getEditableVis() ? true : false,
-        uiState: $scope.vis.getUiState()
+        uiState: $scope.vis.getUiState(),
+        syncMap: params.syncMap
       });
     }
 
@@ -527,14 +574,18 @@ define(function (require) {
       const actionRegistry = $injector.get('actionRegistry');
       const apiVersion = '1';
 
-      actionRegistry.register(apiVersion, $scope.vis.id, 'renderGeoJsonCollection', async (layerName, geoJsonCollection, options) => {
-        return initVectorLayer(layerName, geoJsonCollection, options);
+      actionRegistry.register(apiVersion, $scope.vis.id, 'renderGeoJsonCollection', async (id, layerName, geoJsonCollection, options) => {
+        return initVectorLayer(id, layerName, geoJsonCollection, options);
+      });
+
+      actionRegistry.register(apiVersion, $scope.vis.id, 'removeGeoJsonCollection', async (id) => {
+        return map.clearLayerById(map.vectorOverlays, id);
       });
 
       actionRegistry.register(apiVersion, $scope.vis.id, 'getGeoBoundingBox', async () => {
         return getGeoBoundingBox();
       });
-    };
+    }
 
     // ============================
     // ==POI drag and drop events==
@@ -562,61 +613,135 @@ define(function (require) {
     // ==       vis object      ==
     // ===========================
 
-    map.map.on('groupLayerControl:removeClickedLayer', function (e) {
+    map.leafletMap.on('groupLayerControl:removeClickedLayer', function (e) {
       $scope.vis.params.overlays.dragAndDropPoiLayers =
         _.filter($scope.vis.params.overlays.dragAndDropPoiLayers, function (dragAndDropPoiLayer) {
-          return dragAndDropPoiLayer.searchIcon !== e.name;
+          return dragAndDropPoiLayer.currentId !== e.layer.currentId;
         });
     });
 
     // saving checkbox status to dashboard uiState
-    map.map.on('overlayadd', function (e) {
-      $scope.vis.getUiState().set(e.name, !!e.name);
-    });
-    map.map.on('overlayremove', function (e) {
-      $scope.vis.getUiState().set(e.name, false);
+    map.leafletMap.on('overlayadd', function (e) {
+      map.saturateWMSTiles();
+      if (map._markers && e.name === 'Aggregation') {
+        map._markers.show();
+      }
+      const uiStatekey = e.layer.id || e.name;
+      $scope.vis.getUiState().set(uiStatekey, !!uiStatekey);
     });
 
-    map.map.on('moveend', _.debounce(function setZoomCenter(ev) {
-      if (!map.map) return;
+    map.leafletMap.on('overlayremove', function (e) {
+      if (map._markers && e.name === 'Aggregation') {
+        map._markers.hide();
+      }
+      const uiStatekey = e.layer.id || e.name;
+      $scope.vis.getUiState().set(uiStatekey, false);
+    });
+
+    map.leafletMap.on('moveend', _.debounce(function setZoomCenter() {
+      if (!map.leafletMap) return;
       if (map._hasSameLocation()) return;
 
       // update internal center and zoom references
-      map._mapCenter = map.map.getCenter();
+      map._mapCenter = map.leafletMap.getCenter();
       $scope.vis.getUiState().set('mapCenter', [
         _.round(map._mapCenter.lat, 5),
         _.round(map._mapCenter.lng, 5)
       ]);
-      $scope.vis.getUiState().set('mapZoom', map.map.getZoom());
+      $scope.vis.getUiState().set('mapZoom', map.leafletMap.getZoom());
 
       map._callbacks.mapMoveEnd({
+        searchSource: $scope.searchSource,
         collar: map._collar,
         mapBounds: map.mapBounds()
       });
     }, 150, false));
 
-    map.map.on('zoomend', _.debounce(function () {
-      if (!map.map) return;
+    map.leafletMap.on('zoomend', _.debounce(function () {
+      if (!map.leafletMap) return;
       if (map._hasSameLocation()) return;
       if (!map._callbacks) return;
-      $scope.vis.getUiState().set('mapZoom', map.map.getZoom());
+      $scope.vis.getUiState().set('mapZoom', map.leafletMap.getZoom());
 
       map._callbacks.mapZoomEnd({
+        searchSource: $scope.searchSource,
         chart: map._chartData
       });
     }, 150, false));
 
-    map.map.on('setview:fitBounds', function (e) {
-      const params = { searchSource: chartData.searchSource, field: getGeoField().fieldname };
-      const boundsHelper = new BoundsHelper(params);
-      boundsHelper.getBoundsOfEntireDataSelection($scope.vis)
-        .then(entireBounds => {
-          if (entireBounds) {
-            map.map.fitBounds(entireBounds);
-            //update uiState zoom so correct geohash precision will be used
-            $scope.vis.getUiState().set('mapZoom', map.map.getZoom());
-          };
-        });
+    map.leafletMap.on('setview:fitBounds', function () {
+      _doFitMapBoundsToData();
+    });
+
+    map.leafletMap.on('draw:created', function (e) {
+      const indexPatternId = getIndexPatternId();
+      const field = getGeoField();
+      const sirenMeta = getSirenMeta();
+
+      switch (e.layerType) {
+        case 'marker':
+          map._drawnItems.addLayer(e.layer);
+          map._callbacks.createMarker({
+            latlng: e.layer._latlng
+          });
+          break;
+        case 'polygon':
+          const points = [];
+          e.layer._latlngs[0].forEach(function (latlng) {
+            const lat = L.Util.formatNum(latlng.lat, 5);
+            const lon = L.Util.formatNum(latlng.lng, 5);
+            points.push([lon, lat]);
+          });
+          map._callbacks.polygon({
+            points,
+            indexPatternId,
+            field,
+            sirenMeta
+          });
+          break;
+        case 'rectangle':
+          map._callbacks.rectangle({
+            bounds: utils.scaleBounds(e.layer.getBounds(), 1),
+            indexPatternId,
+            field,
+            sirenMeta
+          });
+          break;
+        case 'circle':
+          map._callbacks.circle({
+            radius: e.layer._mRadius,
+            center: [e.layer._latlng.lat, e.layer._latlng.lng],
+            indexPatternId,
+            field,
+            sirenMeta
+          });
+          break;
+        default:
+          console.warn('draw:created, unexpected layerType: ' + e.layerType);
+      }
+    });
+
+    map.leafletMap.on('etm:select-feature', function (e) {
+      map._callbacks.polygon({
+        points: e.geojson.geometry.coordinates[0],
+        field: getGeoField(),
+        sirenMeta: getSirenMeta(),
+      });
+    });
+
+    map.leafletMap.on('toolbench:poiFilter', function (e) {
+      const poiLayers = [];
+      Object.keys(map.poiLayers).forEach(function (key) {
+        poiLayers.push(map.poiLayers[key]);
+      });
+      map._callbacks.poiFilter({
+        chart: map._chartData,
+        poiLayers: poiLayers,
+        radius: _.get(e, 'radius', 10),
+        indexPatternId: getIndexPatternId(),
+        field: getGeoField(),
+        sirenMeta: getSirenMeta()
+      });
     });
 
   });

@@ -42,16 +42,16 @@ define(function (require) {
           self.$tooltipScope.title = savedSearch.title;
           self.$tooltipScope.description = savedSearch.description;
           self.$tooltipScope.setSortOrder = () => {
-            console.log('setSortOrder no supported');
+            console.warn('setSortOrder no supported');
           };
           self.$tooltipScope.addColumn = () => {
-            console.log('addColumn no supported');
+            console.warn('addColumn no supported');
           };
           self.$tooltipScope.removeColumn = () => {
-            console.log('removeColumn no supported');
+            console.warn('removeColumn no supported');
           };
           self.$tooltipScope.moveColumn = () => {
-            console.log('moveColumn no supported');
+            console.warn('moveColumn no supported');
           };
           self.$visEl = linkFn(self.$tooltipScope);
         });
@@ -61,12 +61,12 @@ define(function (require) {
           return geoFilter.rectFilter(self.fieldname, self.geotype, bounds.top_left, bounds.bottom_right);
         }
 
-        return function (feature, map) {
+        return function (feature, leafletMap) {
           if (!feature) return '';
           if (!self.$visEl) return 'initializing';
 
-          const width = Math.round(map.getSize().x * _.get(self.options, 'xRatio', 0.6));
-          const height = Math.round(map.getSize().y * _.get(self.options, 'yRatio', 0.6));
+          const width = Math.round(leafletMap.getSize().x * _.get(self.options, 'xRatio', 0.6));
+          const height = Math.round(leafletMap.getSize().y * _.get(self.options, 'yRatio', 0.6));
           const style = 'style="height: ' + height + 'px; width: ' + width + 'px;"';
           const loadHtml = '<div ' + style + '>Loading Data</div>';
 
@@ -81,7 +81,7 @@ define(function (require) {
               height: height
             });
 
-            const $popup = $(map.getContainer()).find('.leaflet-popup-content');
+            const $popup = $(leafletMap.getContainer()).find('.leaflet-popup-content');
 
             //A lot can happed between calling fetch and getting a response
             //Only update popup content if the popup context is still for this fetch

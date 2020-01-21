@@ -8,21 +8,16 @@ define(function (require) {
     /**
      * Map overlay: rectangles that show the geohash grid bounds
      *
-     * @param map {Leaflet Object}
+     * @param leafletMap {Leaflet Object}
      * @param geoJson {geoJson Object}
      * @param params {Object}
      */
     _.class(GeohashGridMarker).inherits(BaseMarker);
-    function GeohashGridMarker(map, geoJson, params) {
-      const self = this;
+    function GeohashGridMarker() {
       GeohashGridMarker.Super.apply(this, arguments);
 
-      // super min and max from all chart data
-      // let min = this.geoJson.properties.allmin;
-      // let max = this.geoJson.properties.allmax;
-
       this._createMarkerGroup({
-        pointToLayer: function (feature, latlng) {
+        pointToLayer: function (feature) {
           const geohashRect = feature.properties.rectangle;
           // get bounds from northEast[3] and southWest[1]
           // corners in geohash rectangle

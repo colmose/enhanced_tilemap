@@ -64,16 +64,16 @@ define(function (require) {
         }
       });
       return geoFields;
-    };
+    }
 
     const getParentWithClass = function (element, className) {
       let parent = element;
       while (parent != null) {
         if (parent.className && L.DomUtil.hasClass(parent, className)) {
           return parent;
-        };
+        }
         parent = parent.parentNode;
-      };
+      }
       return false;
     };
 
@@ -104,7 +104,7 @@ define(function (require) {
           if (this.draggedState) {
             options.close = true;
             options.color = savedSearch.siren.ui.color;
-          };
+          }
 
           let searchIcon;
           if (this.geoType === 'geo_point') {
@@ -113,7 +113,7 @@ define(function (require) {
           } else {
             //use square icon for geo_shape fields
             searchIcon = `<i class="far fa-stop" style="color:${options.color};"></i>`;
-          };
+          }
 
           function createMapExtentFilter(rect) {
             const bounds = rect.geo_bounding_box.geoBoundingBox;
@@ -182,9 +182,9 @@ define(function (require) {
 
           // assigning the placeholder value of 1000 POIs in the
           // case where number in the limit field has been replaced with null
-          const poiLimitToDisplay = this.limit || 1000;
+          // const poiLimitToDisplay = this.limit || 1000;
 
-          const tooManyDocsInfo = `<i class="fa fa-exclamation-triangle text-color-warning doc-viewer-underscore"></i>`;
+          // const tooManyDocsInfo = `<i class="fa fa-exclamation-triangle text-color-warning doc-viewer-underscore"></i>`;
 
           //Removal of previous too many documents warning when map is changed to a new extent
           options.$legend.innerHTML = '';
@@ -217,8 +217,8 @@ define(function (require) {
                   individualDocFilters.bool.should.push(geoBoundingBoxFilter);
                   totalNumberOfDocsToRetrieve += options.aggFeatures[i].properties.value;
                   options.aggFeatures.splice(i, 1);
-                };
-              };
+                }
+              }
 
               const docSearchSource = new SearchSource();
               let allFilters = [];
@@ -262,7 +262,7 @@ define(function (require) {
                 docSearchSource.index(savedSearch.searchSource._state.index);
                 docSearchSource.query(savedSearch.searchSource.get('query'));
                 allFilters.push(createMapExtentFilter(options.mapExtentFilter));
-              };
+              }
 
               allFilters = allFilters.concat(individualDocFilters);
 
@@ -294,7 +294,7 @@ define(function (require) {
                     options.$legend.searchIcon = `<i>${options.displayName}</i> ${searchIcon}`;
                   } else {
                     options.$legend.searchIcon = `${options.displayName} ${searchIcon}`;
-                  };
+                  }
 
                   //Storing this information on the params object for use
                   //in ES Response watcher
@@ -306,7 +306,7 @@ define(function (require) {
                     this.params.geoField = this.geoField;
                     this.params.geoType = this.geoType;
                     this.params.displayName = options.displayName;
-                  };
+                  }
 
                   callback(self._createLayer(docSearchResp.hits.hits, this.geoType, options));
                 });
@@ -326,7 +326,7 @@ define(function (require) {
               return _.find(geoFields, function (geoField) {
                 return geoField.name === geoFieldName;
               });
-            };
+            }
 
             const domNode = document.createElement('div');
             document.body.append(domNode);
@@ -396,7 +396,7 @@ define(function (require) {
               modalWithForm(title, form, footer, onClose),
               domNode
             );
-          };
+          }
         };
 
         //handling case where savedSearch is coming from vis params or drag and drop
@@ -405,7 +405,7 @@ define(function (require) {
           processLayer();
         } else if (!this.geoType) {
           geoFieldSelectModal();
-        };
+        }
 
       });
     };
@@ -415,10 +415,10 @@ define(function (require) {
       const self = this;
 
       function makePoints(features) {
-        let points = {};
+      //  let points = {};
 
         const markerList = [];
-        features.forEach(function (feature, index) {
+        features.forEach(function (feature) {
           const markerCount = _.get(feature, 'properties.value', 1);
           let centerLat;
           let centerLon;
@@ -452,10 +452,10 @@ define(function (require) {
             //marker.sentiment = agg.sentiment_avg.value;
             //marker.bindPopup('' + markerCount); // this is where tooltip popups are added
             markerList.push(marker);
-          };
+          }
         });
         return markerList;
-      };
+      }
 
       if ('geo_point' === geoType) {
         // const markers = _.map(hits, hit => {
@@ -468,7 +468,7 @@ define(function (require) {
         // });
 
         if (options.aggFeatures || hits) {
-          
+
 
           // layer = L.markerClusterGroup({
           //   maxClusterRadius: 80,
@@ -498,7 +498,7 @@ define(function (require) {
           const geometry = _.get(hit, `_source[${self.geoField}]`);
           if (geometry) {
             geometry.type = capitalizeFirstLetter(geometry.type);
-          };
+          }
 
           let popupContent = false;
           if (self.popupFields.length > 0) {
@@ -523,7 +523,7 @@ define(function (require) {
               }
 
               if (_.get(feature, 'geometry.type') === 'Polygon') {
-                polygon._click = function fireEtmSelectFeature(e) {
+                polygon._click = function fireEtmSelectFeature() {
                   polygon._map.fire('etm:select-feature', {
                     geojson: polygon.toGeoJSON()
                   });
@@ -558,6 +558,7 @@ define(function (require) {
       } else {
         console.warn('Unexpected feature geo type: ' + geoType);
       }
+      layer.id = options.id;
       layer.tooManyDocs = options.tooManyDocs;
       layer.filterPopupContent = options.filterPopupContent;
       layer.close = options.close;
@@ -580,14 +581,13 @@ define(function (require) {
       self._popupMouseOut = function (e) {
         // detach the event, if one exists
         if (self._map) {
-          L.DomEvent.off(self._map._popup._container, 'mouseout', self._popupMouseOut, self);
-
           // get the element that the mouse hovered onto
           const target = e.toElement || e.relatedTarget;
           // check to see if the element is a popup
           if (getParentWithClass(target, 'leaflet-popup')) {
             return true;
           }
+          L.DomEvent.off(self._map._popup._container, 'mouseout', self._popupMouseOut, self);
           self.closePopup();
         }
       };
@@ -609,16 +609,20 @@ define(function (require) {
     POIs.prototype._getMouseOverGeoPoint = function (content) {
       const popup = function (e) {
         if (!e.target._map.disablePopups) {
+          const popupDimensions = {
+            height: this._map.getSize().y * 0.9,
+            width: Math.min(this._map.getSize().x * 0.9, 400)
+          };
           L.popup({
             autoPan: false,
-            maxHeight: 'auto',
-            maxWidth: 'auto',
-            offset: utils.popupOffset(this._map, content, e.latlng)
+            maxHeight: popupDimensions.height,
+            maxWidth: popupDimensions.width,
+            offset: utils.popupOffset(this._map, content, e.latlng, popupDimensions)
           })
             .setLatLng(e.latlng)
             .setContent(content)
             .openOn(this._map);
-        };
+        }
       };
       return popup;
     };
@@ -629,15 +633,15 @@ define(function (require) {
       self._popupMouseOut = function (e) {
         // detach the event, if one exists
         if (self._map) {
-          L.DomEvent.off(self._map._popup._container, 'mouseout', self._popupMouseOut, self);
           // get the element that the mouse hovered onto
           const target = e.toElement || e.relatedTarget;
           // check to see if the element is a popup
           if (getParentWithClass(target, 'leaflet-popup')) {
             return true;
           }
+          L.DomEvent.off(self._map._popup._container, 'mouseout', self._popupMouseOut, self);
           self._map.closePopup();
-        };
+        }
       };
 
       const target = e.originalEvent.toElement || e.originalEvent.relatedTarget;

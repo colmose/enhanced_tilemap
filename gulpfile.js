@@ -1,6 +1,4 @@
 const gulp = require('gulp');
-const gulpIf = require('gulp-if');
-const _ = require('lodash');
 const path = require('path');
 const mkdirp = require('mkdirp');
 const Rsync = require('rsync');
@@ -8,7 +6,6 @@ const Promise = require('bluebird');
 const eslint = require('gulp-eslint');
 const rimraf = require('rimraf');
 const zip = require('gulp-zip');
-const fs = require('fs');
 const spawn = require('child_process').spawn;
 const minimist = require('minimist');
 const os = require('os');
@@ -17,7 +14,6 @@ const packageName = pkg.name;
 
 // in their own sub-directory to not interfere with Gradle
 const buildDir = path.resolve(__dirname, 'build/gulp');
-const fixtureDir = path.resolve(buildDir, 'fixtures');
 const targetDir = path.resolve(__dirname, 'target/gulp');
 const buildTarget = path.resolve(buildDir, 'kibana', packageName);
 
@@ -35,7 +31,11 @@ const knownOptions = {
 };
 
 const options = minimist(process.argv.slice(2), knownOptions);
-const kibanaPluginDir = path.resolve(__dirname, path.join(options.kibanahomepath, 'siren_plugins', packageName));
+// here we have to make sure we always take the last provided kibanahomepath
+const kibanahomepath = Array.isArray(options.kibanahomepath) ?
+  options.kibanahomepath[options.kibanahomepath.length - 1] :
+  options.kibanahomepath;
+const kibanaPluginDir = path.resolve(__dirname, path.join(kibanahomepath, 'siren_plugins', packageName));
 
 
 function syncPluginTo(dest, done) {
@@ -68,7 +68,7 @@ function syncPluginTo(dest, done) {
 
         rsync.execute(function (err) {
           if (err) {
-            console.log(err);
+            console.error(err);
             return reject(err);
           }
           resolve();
@@ -98,24 +98,11 @@ gulp.task('sync', function (done) {
   syncPluginTo(kibanaPluginDir, done);
 });
 
-const eslintOptions = {
-  rules: {
-    memoryleaks: 1
-  },
-  rulePaths: [path.resolve(__dirname, options.kibanahomepath, 'scripts', 'eslintrules')],
-  fix: true
-};
-
-function isFixed(file) {
-  // Has ESLint fixed the file contents?
-  return file.eslint != null && file.eslint.fixed;
-}
-
-gulp.task('lint', function (done) {
+gulp.task('lint', function () {
   return gulp.src([
     'public/**/*.js',
     '!**/webpackShims/**'
-  ]).pipe(eslint(eslintOptions))
+  ]).pipe(eslint())
     .pipe(eslint.formatEach())
     .pipe(eslint.failOnError());
 });
@@ -135,7 +122,7 @@ gulp.task('build', gulp.series('clean', function (done) {
   syncPluginTo(buildTarget, done);
 }));
 
-gulp.task('package', gulp.series('build', function (done) {
+gulp.task('package', gulp.series('build', function () {
   return gulp.src([
     path.join(buildDir, '**', '*')
   ])
@@ -143,7 +130,7 @@ gulp.task('package', gulp.series('build', function (done) {
     .pipe(gulp.dest(targetDir));
 }));
 
-gulp.task('dev', gulp.series('sync', function (done) {
+gulp.task('dev', gulp.series('sync', function () {
   gulp.watch([
     'package.json',
     'index.js',
@@ -152,22 +139,22 @@ gulp.task('dev', gulp.series('sync', function (done) {
 }));
 
 gulp.task('test', gulp.series('sync', function (done) {
-  spawn('grunt', [ 'test:browser', '--grep=Kibi Enhanced Tilemap'], {
-    cwd: options.kibanahomepath,
+  spawn('grunt', ['test:browser', '--grep=Kibi Enhanced Tilemap'], {
+    cwd: kibanahomepath,
     stdio: 'inherit'
   }).on('close', done);
 }));
 
 gulp.task('testdev', gulp.series('sync', function (done) {
   spawn('grunt', ['test:dev', '--browser=Chrome', '--kbnServer.ignoreDevYml'], {
-    cwd: options.kibanahomepath,
+    cwd: kibanahomepath,
     stdio: 'inherit'
   }).on('close', done);
 }));
 
 gulp.task('coverage', gulp.series('sync', function (done) {
   spawn('grunt', ['test:coverage', '--grep=Kibi Enhanced Tilemap'], {
-    cwd: options.kibanahomepath,
+    cwd: kibanahomepath,
     stdio: 'inherit'
   }).on('close', done);
 }));
