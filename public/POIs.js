@@ -6,7 +6,7 @@ import { toLatLng } from 'plugins/enhanced_tilemap/vislib/geo_point';
 import { SearchSourceProvider } from 'ui/courier/data_source/search_source';
 import { FilterBarQueryFilterProvider } from 'ui/filter_bar/query_filter';
 import utils from 'plugins/enhanced_tilemap/utils';
-import { decodeGeoHash } from 'ui/utils/decode_geo_hash';
+//import { decodeGeoHash } from 'ui/utils/decode_geo_hash';
 import { VislibVisTypeBuildChartDataProvider } from 'ui/vislib_vis_type/build_chart_data';
 
 //react modal
@@ -29,7 +29,6 @@ define(function (require) {
     const geoFilter = Private(require('plugins/enhanced_tilemap/vislib/geoFilter'));
     const RespProcessor = require('plugins/enhanced_tilemap/resp_processor');
     const buildChartData = Private(VislibVisTypeBuildChartDataProvider);
-    require('./lib/leaflet.markercluster/leaflet.markercluster');
 
     const MAX_DOC_THRESHOLD = 1000;
 
@@ -415,7 +414,7 @@ define(function (require) {
       const self = this;
 
       function makePoints(features) {
-      //  let points = {};
+        //  let points = {};
 
         const markerList = [];
         features.forEach(function (feature) {
@@ -454,7 +453,7 @@ define(function (require) {
             markerList.push(marker);
           }
         });
-        return markerList;
+        return L.geoJson(markerList);
       }
 
       if ('geo_point' === geoType) {
@@ -470,26 +469,38 @@ define(function (require) {
         if (options.aggFeatures || hits) {
 
 
-          // layer = L.markerClusterGroup({
-          //   maxClusterRadius: 80,
-          //   animateAddingMarkers: false,
-          //   chunkedLoading: true,
-          //   spiderfyOnMaxZoom: true,
-          //   showCoverageOnHover: false,
-          //   iconCreateFunction: function (cluster) {
-          //     //Grouping the cluster returned by the server, if
-          //     const markers = cluster.getAllChildMarkers();
-          //     let numberOfDocuments = 0;
-          //     markers.forEach(function (m) {
-          //       console.log(m.numberOfDocuments);
-          //       numberOfDocuments += m.numberOfDocuments;
-          //     });
-          //     return markerClusteringIcon(20, 100);
-          //   }
-          // });
 
-          const featuresForLayer = makePoints(hits).concat(makePoints(options.aggFeatures));
+          // if (self.geoJson.features.length <= 250) {
+          //   this._markerGroup = L.geoJson(self.geoJson, _.defaults(defaultOptions, options));
+          // } else {
+          //   //don't block UI when processing lots of features
+          //   this._markerGroup = L.geoJson(self.geoJson.features.slice(0, 100), _.defaults(defaultOptions, options));
+          //   this._stopLoadingGeohash();
+
+          //   this._createSpinControl();
+          //   let place = 100;
+          //   this._intervalId = setInterval(
+          //     function () {
+          //       let stopIndex = place + 100;
+          //       let halt = false;
+          //       if (stopIndex > self.geoJson.features.length) {
+          //         stopIndex = self.geoJson.features.length;
+          //         halt = true;
+          //       }
+          //       for (let i = place; i < stopIndex; i++) {
+          //         place++;
+          //         self._markerGroup.addData(self.geoJson.features[i]);
+          //       }
+          //       if (halt) self._stopLoadingGeohash();
+          //     },
+          //     200);
+          // }
+
+
+          const featuresForLayer = makePoints(hits); // .concat(makePoints(options.aggFeatures));
           layer = new L.FeatureGroup(featuresForLayer);
+
+          layer.addData(makePoints(options.aggFeatures));
 
           layer.destroy = () => layer.clearLayers(); //TODO add destroy method// layer.forEach(self._removeMouseEventsGeoPoint);
         }
