@@ -188,9 +188,11 @@ installGrunt.mustRunAfter 'installGruntGlobally'
 task gulpTest(type: GulpTask) {
     args = ["test"]
     if (project.hasProperty('kibiHomePath')) {
+        println '-------------------------------------------------------- BASED ON HOME PATH'
         args << "--kibanahomepath=${kibiHomePath}"
     }
     else {
+        println '-------------------------------------------------------- INSTALL KIBI'
         dependsOn installKibi
         args << "--kibanahomepath=${new File(extractKibi.destinationDir, "investigate-core-${investigateVersion}-sources").getAbsolutePath()}"
     }
