@@ -27,56 +27,63 @@
   }
 
   .siren-dashboard-drop-hover {
-    position: absolute;
+    position        : absolute;
     background-color: #f8f8f8b9;
-    width: 100%;
-    height: 100%;
-    z-index: 99999;
-    text-align: center;
-    display: table-cell;
+    width           : 100%;
+    height          : 100%;
+    z-index         : 99999;
+    text-align      : center;
+    display         : table-cell;
 
     .message {
       font-size: 24px;
-      color: @gray5;
-      width: 100%;
-      position: absolute;
-      top: 50%;
+      color    : @gray5;
+      width    : 100%;
+      position : absolute;
+      top      : 50%;
     }
   }
 
   .siren-dashboard-drop-hover.dashed-line {
-    outline: 3px dashed @gray11;
+    outline       : 3px dashed @gray11;
     outline-offset: -8px;
   }
 
   // This is to hide the drag and drop shadow and list item when you
   // try to drag a dashboard on the graph
-  .dragging-pointer, .dashboards-nav-edit-link-dashboard, .kibi-dashboards-nav-edit-link-group {
+  .dragging-pointer,
+  .dashboards-nav-edit-link-dashboard,
+  .kibi-dashboards-nav-edit-link-group {
     display: none;
   }
 
   .marker-icon {
-    display: flex;
-    align-items: center;
+    display        : flex;
+    align-items    : center;
     justify-content: center;
+
     &.xs {
-      width: 15px;
+      width : 15px;
       height: 15px;
     }
+
     &.s {
-      width: 25px;
+      width : 25px;
       height: 25px;
     }
+
     &.m {
-      width: 40px;
+      width : 40px;
       height: 40px;
     }
+
     &.l {
-      width: 80px;
+      width : 80px;
       height: 80px;
     }
+
     &.xl {
-      width: 160px;
+      width : 160px;
       height: 160px;
     }
   }
@@ -143,21 +150,21 @@
     .fa {
       &.fa-filter {
         padding-left: 4px;
-        color: @kibanaBlue2;
+        color       : @kibanaBlue2;
       }
-    }  
+    }
 
     .fas {
       &.fa-times-square {
         padding-left: 4px;
-        color: @brand-danger;
+        color       : @brand-danger;
       }
     }
 
     .fa {
       &.fa-exclamation-triangle {
         padding-left: 4px;
-        color: @brand-warning;
+        color       : @brand-warning;
       }
     }
 
@@ -167,6 +174,16 @@
 
     .leaflet-control-layers-group {
       margin-bottom: .5em;
+      
+      &:first-child label {
+        input.leaflet-control-layers-selector {
+          margin-left: 0px;
+        }
+      }
+
+      input.leaflet-control-layers-selector {
+        margin-left: 10px;
+      }
     }
 
     .leaflet-control-layers-scrollbar {
@@ -247,14 +264,14 @@
 
   .tilemap {
     margin-bottom: 0px;
-    border: 0px;
+    border       : 0px;
   }
 
   .tilemap-legend {
     .rzslider {
       margin: 15px 0 5px 0;
     }
- 
+
     .rzslider .rz-bubble {
       bottom: 5px;
     }
