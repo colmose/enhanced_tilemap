@@ -30,7 +30,6 @@ define(function (require) {
     const RespProcessor = require('plugins/enhanced_tilemap/resp_processor');
     const buildChartData = Private(VislibVisTypeBuildChartDataProvider);
 
-    const MAX_DOC_THRESHOLD = 1000;
 
     /**
      * Points of Interest
@@ -50,7 +49,7 @@ define(function (require) {
       this.popupFields = _.get(params, 'popupFields', []).map(function (obj) {
         return obj.name;
       });
-      this.limit = _.get(params, 'limit', 100);
+      this.limit = _.get(params, 'limit', 500);
       this.syncFilters = _.get(params, 'syncFilters', false);
     }
 
@@ -170,8 +169,7 @@ define(function (require) {
 
           aggSearchSource.aggs(function () {
             options.vis.requesting();
-            const precision = options.dsl[2].aggs.filtered_geohash.geohash_grid.precision;
-            if (precision >= 3) options.dsl[2].aggs.filtered_geohash.geohash_grid.precision -= 1;
+            options.dsl[2].aggs.filtered_geohash.geohash_grid.precision = utils.getMarkerClusteringPrecision(options.zoom);
             return options.dsl;
           });
           aggSearchSource.source({
@@ -206,7 +204,7 @@ define(function (require) {
               options.aggFeatures = aggChartData.geoJson.features;
               for (let i = options.aggFeatures.length - 1; i >= 0; i--) {
                 const documentsInCurrentFeature = options.aggFeatures[i].properties.value;
-                if ((totalNumberOfDocsToRetrieve + documentsInCurrentFeature) < MAX_DOC_THRESHOLD) {
+                if ((totalNumberOfDocsToRetrieve + documentsInCurrentFeature) < this.limit) {
 
                   const rectangle = options.aggFeatures[i].properties.rectangle;
                   const topLeft = { lat: rectangle[3][0], lon: rectangle[3][1] };
@@ -266,7 +264,7 @@ define(function (require) {
               allFilters = allFilters.concat(individualDocFilters);
 
               docSearchSource.filter(allFilters);
-              docSearchSource.size(MAX_DOC_THRESHOLD);
+              docSearchSource.size(this.limit);
 
               docSearchSource.source({
                 includes: _.compact(_.flatten([this.geoField, this.popupFields])),
@@ -453,7 +451,7 @@ define(function (require) {
             markerList.push(marker);
           }
         });
-        return L.geoJson(markerList);
+        return markerList;
       }
 
       if ('geo_point' === geoType) {
@@ -468,39 +466,8 @@ define(function (require) {
 
         if (options.aggFeatures || hits) {
 
-
-
-          // if (self.geoJson.features.length <= 250) {
-          //   this._markerGroup = L.geoJson(self.geoJson, _.defaults(defaultOptions, options));
-          // } else {
-          //   //don't block UI when processing lots of features
-          //   this._markerGroup = L.geoJson(self.geoJson.features.slice(0, 100), _.defaults(defaultOptions, options));
-          //   this._stopLoadingGeohash();
-
-          //   this._createSpinControl();
-          //   let place = 100;
-          //   this._intervalId = setInterval(
-          //     function () {
-          //       let stopIndex = place + 100;
-          //       let halt = false;
-          //       if (stopIndex > self.geoJson.features.length) {
-          //         stopIndex = self.geoJson.features.length;
-          //         halt = true;
-          //       }
-          //       for (let i = place; i < stopIndex; i++) {
-          //         place++;
-          //         self._markerGroup.addData(self.geoJson.features[i]);
-          //       }
-          //       if (halt) self._stopLoadingGeohash();
-          //     },
-          //     200);
-          // }
-
-
-          const featuresForLayer = makePoints(hits); // .concat(makePoints(options.aggFeatures));
+          const featuresForLayer = makePoints(hits).concat(makePoints(options.aggFeatures));
           layer = new L.FeatureGroup(featuresForLayer);
-
-          layer.addData(makePoints(options.aggFeatures));
 
           layer.destroy = () => layer.clearLayers(); //TODO add destroy method// layer.forEach(self._removeMouseEventsGeoPoint);
         }

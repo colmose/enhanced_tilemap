@@ -250,7 +250,8 @@ define(function (require) {
         mapExtentFilter: {
           geo_bounding_box: getGeoBoundingBox(),
           geoField: getGeoField()
-        }
+        },
+        zoom: map.leafletMap.getZoom()
       };
 
       //Element rendered in Leaflet Library
