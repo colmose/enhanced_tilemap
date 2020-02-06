@@ -271,18 +271,7 @@ define(function (require) {
         this.leafletMap.addLayer(layer);
       }
 
-      const tooManyDocs = {
-        warningIcon: layer.$legend.tooManyDocsInfo[0],
-        message: layer.$legend.tooManyDocsInfo[1]
-      };
-
-      const toomanydocslayername = layer.displayName + ' ' + tooManyDocs.warningIcon + tooManyDocs.message;
-      if (tooManyDocs.warningIcon) {
-        this._layerControl.addOverlay(layer, toomanydocslayername, layerGroup || '<b> POI Overlays</b>', options);
-      } else {
-        this._layerControl.addOverlay(layer, layer.displayName, layerGroup || '<b> POI Overlays</b>', options);
-      }
-
+      this._layerControl.addOverlay(layer, layer.displayName, layerGroup || '<b> POI Overlays</b>', options);
       this.poiLayers[id] = layer;
 
       //Add tool to l.draw.toolbar so users can filter by POIs

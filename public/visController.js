@@ -262,7 +262,6 @@ define(function (require) {
         const options = {
           filterPopupContent: layer.filterPopupContent,
           close: layer.close,
-          tooManyDocs: layer.tooManyDocs
         };
 
         map.addPOILayer(layer.id, layer, layer.layerGroup, options);

@@ -182,8 +182,8 @@ define(function (require) {
     },
     getMarkerClusteringPrecision: function (currentZoom) {
       const clusteringPrecisionBasedOnZoom =  {
-        0: 0,
-        1: 0,
+        0: 1,
+        1: 1,
         2: 1,
         3: 2,
         4: 2,

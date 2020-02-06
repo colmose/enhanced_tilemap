@@ -177,15 +177,6 @@ define(function (require) {
             excludes: []
           });
 
-          // assigning the placeholder value of 1000 POIs in the
-          // case where number in the limit field has been replaced with null
-          // const poiLimitToDisplay = this.limit || 1000;
-
-          // const tooManyDocsInfo = `<i class="fa fa-exclamation-triangle text-color-warning doc-viewer-underscore"></i>`;
-
-          //Removal of previous too many documents warning when map is changed to a new extent
-          options.$legend.innerHTML = '';
-
           aggSearchSource.fetch()
             .then(aggSearchResp => {
 
@@ -201,112 +192,109 @@ define(function (require) {
               };
 
               let totalNumberOfDocsToRetrieve = 0;
-              options.aggFeatures = aggChartData.geoJson.features;
-              for (let i = options.aggFeatures.length - 1; i >= 0; i--) {
-                const documentsInCurrentFeature = options.aggFeatures[i].properties.value;
-                if ((totalNumberOfDocsToRetrieve + documentsInCurrentFeature) < this.limit) {
+              if (_.has(aggChartData, 'geoJson.features')) {
+                options.aggFeatures = aggChartData.geoJson.features;
+                for (let i = options.aggFeatures.length - 1; i >= 0; i--) {
+                  const documentsInCurrentFeature = options.aggFeatures[i].properties.value;
+                  if ((totalNumberOfDocsToRetrieve + documentsInCurrentFeature) < this.limit) {
 
-                  const rectangle = options.aggFeatures[i].properties.rectangle;
-                  const topLeft = { lat: rectangle[3][0], lon: rectangle[3][1] };
-                  const bottomRight = { lat: rectangle[1][0], lon: rectangle[1][1] };
+                    const rectangle = options.aggFeatures[i].properties.rectangle;
+                    const topLeft = { lat: rectangle[3][0], lon: rectangle[3][1] };
+                    const bottomRight = { lat: rectangle[1][0], lon: rectangle[1][1] };
 
-                  const geoBoundingBoxFilter = geoFilter.rectFilter(this.geoField, 'geo_point', topLeft, bottomRight);
-                  individualDocFilters.bool.should.push(geoBoundingBoxFilter);
-                  totalNumberOfDocsToRetrieve += options.aggFeatures[i].properties.value;
-                  options.aggFeatures.splice(i, 1);
+                    const geoBoundingBoxFilter = geoFilter.rectFilter(this.geoField, 'geo_point', topLeft, bottomRight);
+                    individualDocFilters.bool.should.push(geoBoundingBoxFilter);
+                    totalNumberOfDocsToRetrieve += options.aggFeatures[i].properties.value;
+                    options.aggFeatures.splice(i, 1);
+                  }
                 }
-              }
 
-              const docSearchSource = new SearchSource();
-              let allFilters = [];
-              if (this.draggedState) {
-                //For drag and drop overlays
-                if (this.isInitialDragAndDrop) {
-                  //Use filters from search drag and drop
-                  docSearchSource.inherits(false);
-                  docSearchSource.index(this.draggedState.index);
-                  docSearchSource.query(this.draggedState.query[0]);
-                  allFilters = this.draggedState.filters;
+                const docSearchSource = new SearchSource();
+                let allFilters = [];
+                if (this.draggedState) {
+                  //For drag and drop overlays
+                  if (this.isInitialDragAndDrop) {
+                    //Use filters from search drag and drop
+                    docSearchSource.inherits(false);
+                    docSearchSource.index(this.draggedState.index);
+                    docSearchSource.query(this.draggedState.query[0]);
+                    allFilters = this.draggedState.filters;
 
-                  //adding html of filters from dragged dashboard
-                  Promise.resolve(joinExplanation.constructFilterIconMessage(allFilters, this.draggedState.query))
-                    .then(filterPopupContent => {
-                      options.filterPopupContent = filterPopupContent;
-                    });
+                    //adding html of filters from dragged dashboard
+                    Promise.resolve(joinExplanation.constructFilterIconMessage(allFilters, this.draggedState.query))
+                      .then(filterPopupContent => {
+                        options.filterPopupContent = filterPopupContent;
+                      });
 
+                    allFilters.push(createMapExtentFilter(options.mapExtentFilter));
+                    //docSearchSource.filter(allFilters);
+                  } else {
+                    //When drag and drop layer already exists, i.e. ES response watcher
+                    docSearchSource.inherits(false);
+                    docSearchSource.index(this.params.draggedStateInitial.index);
+                    docSearchSource.query(this.params.draggedStateInitial.query[0]);
+                    allFilters = this.params.draggedStateInitial.filters;
+                    allFilters.pop(); // remove previous map extent filter
+                    allFilters.push(createMapExtentFilter(options.mapExtentFilter));
+                    //docSearchSource.filter(allFilters);
+                    options.filterPopupContent = this.params.filterPopupContent; //adding filter popup content from drop
+                  }
+                  //for vis params overlays
+                } else if (this.syncFilters) {
+                  docSearchSource.inherits(savedSearch.searchSource);
+                  allFilters = queryFilter.getFilters();
                   allFilters.push(createMapExtentFilter(options.mapExtentFilter));
                   //docSearchSource.filter(allFilters);
                 } else {
-                  //When drag and drop layer already exists, i.e. ES response watcher
+                  //Do not filter POIs by time so can not inherit from rootSearchSource
                   docSearchSource.inherits(false);
-                  docSearchSource.index(this.params.draggedStateInitial.index);
-                  docSearchSource.query(this.params.draggedStateInitial.query[0]);
-                  allFilters = this.params.draggedStateInitial.filters;
-                  allFilters.pop(); // remove previous map extent filter
+                  docSearchSource.index(savedSearch.searchSource._state.index);
+                  docSearchSource.query(savedSearch.searchSource.get('query'));
                   allFilters.push(createMapExtentFilter(options.mapExtentFilter));
-                  //docSearchSource.filter(allFilters);
-                  options.filterPopupContent = this.params.filterPopupContent; //adding filter popup content from drop
                 }
-                //for vis params overlays
-              } else if (this.syncFilters) {
-                docSearchSource.inherits(savedSearch.searchSource);
-                allFilters = queryFilter.getFilters();
-                allFilters.push(createMapExtentFilter(options.mapExtentFilter));
-                //docSearchSource.filter(allFilters);
-              } else {
-                //Do not filter POIs by time so can not inherit from rootSearchSource
-                docSearchSource.inherits(false);
-                docSearchSource.index(savedSearch.searchSource._state.index);
-                docSearchSource.query(savedSearch.searchSource.get('query'));
-                allFilters.push(createMapExtentFilter(options.mapExtentFilter));
-              }
 
-              allFilters = allFilters.concat(individualDocFilters);
+                allFilters = allFilters.concat(individualDocFilters);
 
-              docSearchSource.filter(allFilters);
-              docSearchSource.size(this.limit);
+                docSearchSource.filter(allFilters);
+                docSearchSource.size(this.limit);
 
-              docSearchSource.source({
-                includes: _.compact(_.flatten([this.geoField, this.popupFields])),
-                excludes: []
-              });
-
-              // docSearchSource.aggs(function () {
-              //   options.vis.requesting();
-              //   return options.dsl;
-              // });
-
-              docSearchSource.fetch()
-                .then(docSearchResp => {
-
-                  // if (searchResp.hits.total > this.limit) {
-                  //   options.$legend.innerHTML = tooManyDocsInfo;
-                  //   options.tooManyDocs = poiLimitToDisplay;
-                  // };
-
-
-                  //Too many documents warning for each specific layer
-                  options.$legend.tooManyDocsInfo = '';
-                  if (this.draggedState) {
-                    options.$legend.searchIcon = `<i>${options.displayName}</i> ${searchIcon}`;
-                  } else {
-                    options.$legend.searchIcon = `${options.displayName} ${searchIcon}`;
-                  }
-
-                  //Storing this information on the params object for use
-                  //in ES Response watcher
-                  if (this.isInitialDragAndDrop) {
-                    this.params.filterPopupContent = options.filterPopupContent;
-                    this.params.searchIcon = options.$legend.searchIcon;
-                    this.params.savedDashboardTitleInitial = this.params.savedDashboardTitle;
-                    this.params.draggedStateInitial = this.params.draggedState;
-                    this.params.geoField = this.geoField;
-                    this.params.geoType = this.geoType;
-                    this.params.displayName = options.displayName;
-                  }
-
-                  callback(self._createLayer(docSearchResp.hits.hits, this.geoType, options));
+                docSearchSource.source({
+                  includes: _.compact(_.flatten([this.geoField, this.popupFields])),
+                  excludes: []
                 });
+
+                // docSearchSource.aggs(function () {
+                //   options.vis.requesting();
+                //   return options.dsl;
+                // });
+
+                docSearchSource.fetch()
+                  .then(docSearchResp => {
+                    //Storing this information on the params object for use
+                    //in ES Response watcher
+                    if (this.isInitialDragAndDrop) {
+                      this.params.filterPopupContent = options.filterPopupContent;
+                      this.params.searchIcon = options.$legend.searchIcon;
+                      this.params.savedDashboardTitleInitial = this.params.savedDashboardTitle;
+                      this.params.draggedStateInitial = this.params.draggedState;
+                      this.params.geoField = this.geoField;
+                      this.params.geoType = this.geoType;
+                      this.params.displayName = options.displayName;
+                    }
+
+                    callback(self._createLayer(docSearchResp.hits.hits, this.geoType, options));
+                  });
+              } else {
+                const layer = new L.FeatureGroup();
+                layer.id = options.id;
+                layer.filterPopupContent = options.filterPopupContent;
+                layer.close = options.close;
+                layer.displayName = options.displayName;
+                layer.$legend = options.$legend;
+                layer.layerGroup = options.layerGroup;
+                layer.destroy = () => { return; };
+                callback(layer);
+              }
             });
         };
 
@@ -411,65 +399,51 @@ define(function (require) {
       let layer = null;
       const self = this;
 
-      function makePoints(features) {
-        //  let points = {};
-
+      function makeIndividualPoints(features) {
         const markerList = [];
         features.forEach(function (feature) {
-          const markerCount = _.get(feature, 'properties.value', 1);
-          let centerLat;
-          let centerLon;
+          markerList.push(self._createMarker(feature, options));
+        });
+        return markerList;
+      }
 
-          if (_.has(feature, 'properties.geohash')) {
-            //aggs
-            centerLat = feature.geometry.coordinates[1];
-            centerLon = feature.geometry.coordinates[0];
+      function makeClusterPoints(features) {
+        const markerList = [];
+        let maxAggDocCount = 0;
+        let centerLat;
+        let centerLon;
 
-            // const myIcon = L.divIcon({
-            //   html: '<div class="clustergroup0 leaflet-marker-icon marker-cluster marker-cluster-medium' +
-            //     'leaflet-zoom-animated leaflet-clickable" tabindex="0" style="margin-left: -20px; margin-top: -20px; width: 40px;' +
-            //     'height: 40px; z-index: 233;"><div><span>' + markerCount + '</span></div></div>'
-            // });
-            const marker = L.marker([centerLat, centerLon], {
-              icon: markerClusteringIcon(markerCount)
-            });
+        features.forEach(feature => {
+          if (feature.properties.value > maxAggDocCount) maxAggDocCount = feature.properties.value;
+        });
 
-            self._createMarker(feature, options);
-            //marker.numberOfDocuments = markerCount;
-            //marker.sentiment = agg.sentiment_avg.value;
-            //marker.bindPopup('' + marker.numberOfDocuments); // this is where tooltip popups are added
-            markerList.push(marker);
-          } else {
-            //docs
-            const centerLatAndLong = feature._source.location; //.split(',');
-            centerLat = Number(centerLatAndLong[0]);
-            centerLon = Number(centerLatAndLong[1]);
-            const marker = self._createMarker(feature, options);
-            // marker.numberOfDocuments = markerCount;
-            //marker.sentiment = agg.sentiment_avg.value;
-            //marker.bindPopup('' + markerCount); // this is where tooltip popups are added
-            markerList.push(marker);
-          }
+        features.forEach(function (feature) {
+          const markerCount = _.get(feature, 'properties.value');
+          centerLat = feature.geometry.coordinates[1];
+          centerLon = feature.geometry.coordinates[0];
+
+          const marker = L.marker([centerLat, centerLon], {
+            icon: markerClusteringIcon(markerCount, maxAggDocCount)
+          });
+
+          self._createMarker(feature, options);
+          markerList.push(marker);
         });
         return markerList;
       }
 
       if ('geo_point' === geoType) {
-        // const markers = _.map(hits, hit => {
-        //   return self._createMarker(hit, options);
-        // });
-
-        // layer = L.markerClusterGroup({
-        //   chunkedLoading: true,
-        //   showCoverageOnHover: true
-        // });
 
         if (options.aggFeatures || hits) {
-
-          const featuresForLayer = makePoints(hits).concat(makePoints(options.aggFeatures));
+          const featuresForLayer = makeIndividualPoints(hits).concat(makeClusterPoints(options.aggFeatures));
           layer = new L.FeatureGroup(featuresForLayer);
 
-          layer.destroy = () => layer.clearLayers(); //TODO add destroy method// layer.forEach(self._removeMouseEventsGeoPoint);
+          layer.destroy = () => {
+            //individualPoints.forEach(self._removeMouseEventsGeoPoint);
+            featuresForLayer.forEach(feature => {
+              if (feature.type === 'individual') self._removeMouseEventsGeoPoint(feature);
+            });
+          };
         }
       } else if ('geo_shape' === geoType) {
         const shapes = _.map(hits, hit => {
@@ -537,7 +511,6 @@ define(function (require) {
         console.warn('Unexpected feature geo type: ' + geoType);
       }
       layer.id = options.id;
-      layer.tooManyDocs = options.tooManyDocs;
       layer.filterPopupContent = options.filterPopupContent;
       layer.close = options.close;
       layer.displayName = options.displayName;
@@ -653,6 +626,7 @@ define(function (require) {
         const content = this._popupContent(hit);
         this._addMouseEventsGeoPoint(feature, content);
       }
+      feature.type = 'individual';
       return feature;
     };
 

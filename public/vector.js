@@ -38,24 +38,6 @@ define(function () {
       const geometry = self._geoJsonCollection.features[0].geometry;
       geometry.type = capitalizeFirstLetter(geometry.type);
 
-      /*********************************************************************/
-      //for now, there is no limit on number of geoJsons to be drawn
-      //the below has been adapted to retain the functionality if desired.
-      // options.$legend = {};
-      // options.$legend.innerHTML = '';
-      // options.$legend.tooManyDocsInfo = '';
-      //this is an option to have a too many features in map extent button
-      // if (self._geoJsonCollection.features.length > 100) {
-      //   const tooManyDocsInfo = [
-      //     `<i class="fa fa-exclamation-triangle text-color-warning doc-viewer-underscore"></i>`,
-      //     `<b><p class="text-color-warning">There are undisplayed POIs for this overlay due <br>
-      //                                         to having reached the limit currently set to: ${self._geoJsonCollection.features.length}</b>`
-      //   ];
-      //   options.$legend.innerHTML = tooManyDocsInfo[0];
-      //   options.$legend.tooManyDocsInfo = tooManyDocsInfo;
-      // }
-      /*********************************************************************/
-
       if ('Point' === geometry.type) {
         const markers = _.map(self._geoJsonCollection.features, feature => {
           return self._createMarker(feature, options);

@@ -153,8 +153,7 @@ L.Control.GroupedLayers = L.Control.extend({
       name: name,
       overlay: overlay,
       filterPopupContent: _.get(options, 'filterPopupContent', undefined),
-      close: _.get(options, 'close', undefined),
-      tooManyDocs: _.get(options, 'tooManyDocs', false)
+      close: _.get(options, 'close', undefined)
     };
     this._layers.push(_layer);
 
@@ -324,19 +323,6 @@ L.Control.GroupedLayers = L.Control.extend({
         this._map.fire('groupLayerControl:removeClickedLayer', obj);
       });
       label.appendChild(closeButton);
-
-    }
-
-    //adding warning icon for too many documents
-    if (obj.tooManyDocs) {
-      const warningIcon = document.createElement('span');
-      const tooManyDocsInfo = [
-        `<i class="fa fa-exclamation-triangle"></i>`,
-        `<b><p class="text-color-warning">There are undisplayed POIs for this overlay due <br>
-                                        to having reached the limit currently set to: ${obj.tooManyDocs}</b>`
-      ];
-      warningIcon.innerHTML = ` ${tooManyDocsInfo[0]} ${tooManyDocsInfo[1]}`;
-      label.appendChild(warningIcon);
 
     }
 
