@@ -189,8 +189,7 @@ define(function (require) {
     //checking appstate and time filters to identify
     //if map change was related to map event or
     //a separate change on a dashboard OR from vis params
-    function 
-    _shouldAutoFitMapBoundsToData(forceAutoFitToBounds = false) {
+    function _shouldAutoFitMapBoundsToData(forceAutoFitToBounds = false) {
       if (!$scope.vis.params.autoFitBoundsToData) {
         return false;
       }
