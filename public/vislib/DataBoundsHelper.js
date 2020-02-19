@@ -35,7 +35,9 @@ define(function () {
         //_siren from main searchSource is used
         searchSource._siren = this.searchSource._siren;
         //uses query filter if in vis edit mode
-        if (!onDashboardPage()) searchSource.filter(queryFilter.getFilters());
+        if (!onDashboardPage()) {
+          searchSource.filter(queryFilter.getFilters());
+        }
 
         searchSource.aggs(() => {
           vis.requesting();
