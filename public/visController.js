@@ -62,6 +62,9 @@ define(function (require) {
     modifyToDsl();
     setTooltipFormatter($scope.vis.params.tooltip, $scope.vis._siren);
     drawWfsOverlays();
+    if (_shouldAutoFitMapBoundsToData(true)) {
+      _doFitMapBoundsToData();
+    }
 
     const shapeFields = $scope.vis.indexPattern.fields.filter(function (field) {
       return field.type === 'geo_shape';
@@ -341,10 +344,11 @@ define(function (require) {
       if (_.has(resp, 'aggregations')) {
         chartData = respProcessor.process(resp);
         chartData.searchSource = $scope.searchSource;
+        if (_shouldAutoFitMapBoundsToData()) {
+          _doFitMapBoundsToData();
+        }
         draw();
       }
-      if (_shouldAutoFitMapBoundsToData(true)) _doFitMapBoundsToData();
-
 
       //POI overlays - no need to clear all layers for this watcher
       $scope.vis.params.overlays.savedSearches.forEach(initPOILayer);
