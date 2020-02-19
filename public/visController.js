@@ -208,7 +208,7 @@ define(function (require) {
 
     function _doFitMapBoundsToData() {
       if (_.has(chartData, 'searchSource')) {
-        const boundsHelper = new BoundsHelper(chartData.searchSource, getGeoField().fieldname);
+        const boundsHelper = new BoundsHelper($scope.searchSource, getGeoField().fieldname);
         boundsHelper.getBoundsOfEntireDataSelection($scope.vis)
           .then(entireBounds => {
             if (entireBounds) {
