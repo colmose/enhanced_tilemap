@@ -182,10 +182,15 @@ define(function (require) {
       };
     }
 
+    /**
+     * @method _shouldAutoFitMapBoundsToData
+     * @param forceAutoFitToBounds {boolean, flag to force auto fit to bounds regardless of app time / state}
+     */
     //checking appstate and time filters to identify
     //if map change was related to map event or
     //a separate change on a dashboard OR from vis params
-    function _shouldAutoFitMapBoundsToData(calledFromVisParams = false) {
+    function 
+    _shouldAutoFitMapBoundsToData(forceAutoFitToBounds = false) {
       if (!$scope.vis.params.autoFitBoundsToData) {
         return false;
       }
@@ -199,7 +204,7 @@ define(function (require) {
       const differentTimeOrState = !kibiState.compareStates(newState, storedState).stateEqual ||
         !kibiState.compareTimes(newTime, storedTime);
 
-      if (calledFromVisParams || differentTimeOrState) {
+      if (forceAutoFitToBounds || differentTimeOrState) {
         storedTime = _.cloneDeep(newTime);
         storedState = _.cloneDeep(newState);
         return true;
@@ -207,17 +212,15 @@ define(function (require) {
     }
 
     function _doFitMapBoundsToData() {
-      if (_.has(chartData, 'searchSource')) {
-        const boundsHelper = new BoundsHelper($scope.searchSource, getGeoField().fieldname);
-        boundsHelper.getBoundsOfEntireDataSelection($scope.vis)
-          .then(entireBounds => {
-            if (entireBounds) {
-              map.leafletMap.fitBounds(entireBounds);
-              //update uiState zoom so correct geohash precision will be used
-              $scope.vis.getUiState().set('mapZoom', map.leafletMap.getZoom());
-            }
-          });
-      }
+      const boundsHelper = new BoundsHelper($scope.searchSource, getGeoField().fieldname);
+      boundsHelper.getBoundsOfEntireDataSelection($scope.vis)
+        .then(entireBounds => {
+          if (entireBounds) {
+            map.leafletMap.fitBounds(entireBounds);
+            //update uiState zoom so correct geohash precision will be used
+            $scope.vis.getUiState().set('mapZoom', map.leafletMap.getZoom());
+          }
+        });
     }
 
     function aggFilter(field) {
@@ -339,9 +342,10 @@ define(function (require) {
       if (_.has(resp, 'aggregations')) {
         chartData = respProcessor.process(resp);
         chartData.searchSource = $scope.searchSource;
-        if (_shouldAutoFitMapBoundsToData()) _doFitMapBoundsToData();
         draw();
       }
+      if (_shouldAutoFitMapBoundsToData(true)) _doFitMapBoundsToData();
+
 
       //POI overlays - no need to clear all layers for this watcher
       $scope.vis.params.overlays.savedSearches.forEach(initPOILayer);
