@@ -22,12 +22,11 @@ define(function (require) {
       return `${field}: ${numBoxes} ${numBoxes === 1 ? 'shape' : 'shapes'}`;
     }
 
-    function _createPolygonFilter(polygonsToFilter, meta) {
+    function _createPolygonFilter(polygonsToFilter) {
       return {
         bool: {
           should: polygonsToFilter
-        },
-        meta
+        }
       };
     }
 
@@ -39,11 +38,11 @@ define(function (require) {
         const polygons = newFilter.geo_multi_polygon[field].polygons;
         polygonFiltersAndDonuts = geoFilterHelper.analyseMultiPolygon(polygons, field);
         numShapes = polygons.length;
-        newFilter = _createPolygonFilter(polygonFiltersAndDonuts.polygonsToFilter, newFilter.meta);
+        newFilter = _createPolygonFilter(polygonFiltersAndDonuts.polygonsToFilter);
       } else if (newFilter.geo_polygon && newFilter.geo_polygon[field].polygons) {
         //Only analyse vector geo polygons, i.e. not drawn ones
         polygonFiltersAndDonuts = geoFilterHelper.analyseSimplePolygon(newFilter, field);
-        newFilter = _createPolygonFilter(polygonFiltersAndDonuts.polygonsToFilter, newFilter.meta);
+        newFilter = _createPolygonFilter(polygonFiltersAndDonuts.polygonsToFilter);
       } else if (newFilter.bool) {
         //currently this in only for multiple geo_distance filters
         numShapes = newFilter.bool.should.length;
@@ -357,7 +356,7 @@ define(function (require) {
      * @param bottom_right {Object} bottom right at and lon (decimal degrees)
      * @return {Object} elasticsearch geospatial rectangle filter
      */
-    function rectFilter(fieldname, geotype, topLeft, bottomRight, meta) {
+    function rectFilter(fieldname, geotype, topLeft, bottomRight) {
       let geofilter = null;
       if ('geo_point' === geotype) {
         geofilter = { geo_bounding_box: {} };
@@ -380,9 +379,6 @@ define(function (require) {
         console.warn('unexpected geotype: ' + geotype);
       }
 
-      if (meta) {
-        geofilter.meta = meta;
-      }
       return geofilter;
     }
 

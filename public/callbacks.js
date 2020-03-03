@@ -7,6 +7,11 @@ define(function (require) {
     const utils = require('plugins/enhanced_tilemap/utils');
     const L = require('leaflet');
 
+    function addSirenPropertyToFilterMetaAndAddGeoFilter(newFilter, sirenMeta, fieldname, indexPatternId) {
+      filterHelper.addSirenPropertyToFilterMeta(newFilter, sirenMeta);
+      geoFilter.add(newFilter, fieldname, indexPatternId);
+    }
+
     return {
       createMarker: function (event) {
         const agg = _.get(event, 'chart.geohashGridAgg');
@@ -66,8 +71,8 @@ define(function (require) {
             }
           });
         });
-        filterHelper.addSirenPropertyToFilterMeta(boolFilter, event.sirenMeta);
-        geoFilter.add(boolFilter, event.field.fieldname, event.indexPatternId);
+
+        addSirenPropertyToFilterMetaAndAddGeoFilter(boolFilter, event.sirenMeta, event.field.fieldname, event.indexPatternId);
       },
       polygonVector: function (event) {
         if (!event.args.vector) return;
@@ -83,9 +88,7 @@ define(function (require) {
           newFilter.geo_polygon[field] = { polygons: event.points };
         }
 
-        filterHelper.addSirenPropertyToFilterMeta(newFilter, event.args._siren);
-        geoFilter.add(newFilter, field, event.args.indexPattern);
-
+        addSirenPropertyToFilterMetaAndAddGeoFilter(newFilter, event.args._siren, field, event.args.indexPattern);
       },
       polygon: function (event) {
         let newFilter;
@@ -109,24 +112,17 @@ define(function (require) {
           newFilter = { geo_polygon: {} };
           newFilter.geo_polygon[field] = { points: event.points };
         }
-
-        filterHelper.addSirenPropertyToFilterMeta(newFilter, event.sirenMeta);
-        geoFilter.add(newFilter, event.field.fieldname, event.indexPatternId);
+        addSirenPropertyToFilterMetaAndAddGeoFilter(newFilter, event.sirenMeta, event.field.fieldname, event.indexPatternId);
       },
       rectangle: function (event) {
         const newFilter = geoFilter.rectFilter(
-          event.field.fieldname, event.field.geotype, event.bounds.top_left, event.bounds.bottom_right);
-
-        filterHelper.addSirenPropertyToFilterMeta(newFilter, event.sirenMeta);
-        geoFilter.add(newFilter, event.field.fieldname, event.indexPatternId);
+          event.field.fieldname, event.field.geotype, event.bounds.top_left, event.bounds.bottom_right
+        );
+        addSirenPropertyToFilterMetaAndAddGeoFilter(newFilter, event.sirenMeta, event.field.fieldname, event.indexPatternId);
       },
       circle: function (event) {
-        const newFilter = geoFilter.circleFilter(
-          event.field.fieldname, event.center[0], event.center[1], event.radius
-        );
-
-        filterHelper.addSirenPropertyToFilterMeta(newFilter, event.sirenMeta);
-        geoFilter.add(newFilter, event.field.fieldname, event.indexPatternId);
+        const newFilter = geoFilter.circleFilter(event.field.fieldname, event.center[0], event.center[1], event.radius);
+        addSirenPropertyToFilterMetaAndAddGeoFilter(newFilter, event.sirenMeta, event.field.fieldname, event.indexPatternId);
       }
     };
   };
