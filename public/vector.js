@@ -49,7 +49,7 @@ define(function () {
         const markers = _.map(self._geoJsonCollection.features, feature => {
           return self._createMarker(feature, options);
         });
-        layer = new L.FeatureGroup(markers);
+        layer = new L.FeatureGroup(markers, { pane: 'allLayerPane' });
         layer.destroy = () => markers.forEach(self._removeMouseEventsPoint);
         layer.label = `${options.displayName} <i class="fas fa-map-marker" style="color:${options.color};"></i>`;
       } else if ('Polygon' === geometry.type ||
@@ -103,7 +103,8 @@ define(function () {
                 };
                 polygon.on('click', polygon._click);
               }
-            }
+            },
+            pane: 'allLayerPane'
           }
         );
         layer.destroy = () => {
@@ -221,7 +222,8 @@ define(function () {
       const feature = L.marker(
         toLatLng(hit.geometry.coordinates),
         {
-          icon: markerIcon(options.color, options.size)
+          icon: markerIcon(options.color, options.size),
+          pane: 'allLayerPane'
         });
 
       if (options.popupFields.length > 0) {

@@ -80,7 +80,7 @@ define(function (require) {
 
       //create Markers feature group and add saved markers
       this._drawnItems = new L.FeatureGroup();
-      this._drawnItems.pane = 'overlayPane';
+      this._drawnItems.pane = 'allLayerPane';
       const self = this;
       this._attr.markers.forEach(function (point) {
         let color = 'green';
@@ -91,7 +91,8 @@ define(function (require) {
           L.marker(
             point,
             {
-              icon: markerIcon(color)
+              icon: markerIcon(color),
+              pane: 'allLayerPane'
             })
         );
       });
@@ -592,6 +593,8 @@ define(function (require) {
       mapOptions.zoom = this._mapZoom;
 
       this.leafletMap = L.map(this._container, mapOptions);
+      this.leafletMap.createPane('allLayerPane');
+      this.leafletMap.getPane('allLayerPane').style.zIndex = 600;
 
       // add base layer based on above logic and decide saturation based on saved settings
       this._tileLayer.addTo(this.leafletMap);

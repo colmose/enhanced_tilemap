@@ -302,7 +302,8 @@ define(function (require) {
         style: function (feature) {
           const value = _.get(feature, 'properties.value');
           return self.applyShadingStyle(value);
-        }
+        },
+        pane: 'allLayerPane'
       };
 
       if (_.has(self, 'geoJson.features.length')) {
@@ -332,7 +333,7 @@ define(function (require) {
             200);
         }
       } else {
-        this._markerGroup = L.geoJson();
+        this._markerGroup = L.geoJson(null, { pane: 'allLayerPane' });
       }
       this._addToMap();
     };

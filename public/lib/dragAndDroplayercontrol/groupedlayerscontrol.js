@@ -47,7 +47,6 @@ function dndLayerVisibilityChange(enabled, layer, index) {
     enabled
   });
 }
-
 function dndListOrderChange(newList) {
   _allLayers = newList;
   layerUtils.redrawOverlays(_allLayers, _leafletMap);

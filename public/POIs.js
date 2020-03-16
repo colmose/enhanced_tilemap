@@ -295,7 +295,8 @@ define(function (require) {
         const markers = _.map(hits, hit => {
           return self._createMarker(hit, options);
         });
-        layer = new L.FeatureGroup(markers);
+        layer = new L.FeatureGroup(markers, { pane: 'allLayerPane' });
+
         layer.destroy = () => markers.forEach(self._removeMouseEventsGeoPoint);
       } else if ('geo_shape' === geoType) {
         const shapes = _.map(hits, hit => {
@@ -339,6 +340,7 @@ define(function (require) {
               return L.circleMarker(
                 latlng,
                 {
+                  pane: 'allLayerPane',
                   radius: 6
                 });
             },
@@ -346,7 +348,8 @@ define(function (require) {
               color: options.color,
               weight: 1.5,
               opacity: 0.65
-            }
+            },
+            pane: 'allLayerPane'
           }
         );
         layer.destroy = () => {
@@ -480,7 +483,8 @@ define(function (require) {
       const feature = L.marker(
         toLatLng(_.get(hit, `_source[${this.geoField}]`)),
         {
-          icon: searchIcon(options.searchIcon, options.color, options.size)
+          icon: searchIcon(options.searchIcon, options.color, options.size),
+          pane: 'allLayerPane'
         });
 
       if (this.popupFields.length > 0) {

@@ -500,8 +500,8 @@ define(function (require) {
                 maxFeatures: _.get(layerParams, 'maxFeatures', 1000),
                 minZoom: _.get(layerParams, 'minZoom', 13),
                 transparent: true,
-                version: '1.1.1'
-                // pane: 'overlayPane'
+                version: '1.1.1',
+                pane: 'allLayerPane'
               };
               const viewparams = [];
               if (_.get(layerParams, 'viewparams')) {

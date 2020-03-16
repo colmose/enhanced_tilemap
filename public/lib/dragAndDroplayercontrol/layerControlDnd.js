@@ -1,7 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import $ from 'jquery';
-import Tooltip from 'react-qtip';
+
 // import { filter, find, forOwn } from 'lodash';
 import EllipsisWithTooltip from 'react-ellipsis-with-tooltip';
 
