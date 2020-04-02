@@ -2,9 +2,6 @@ const _ = require('lodash');
 const L = require('leaflet');
 import { searchIcon } from 'plugins/enhanced_tilemap/vislib/searchIcon';
 import { toLatLng } from 'plugins/enhanced_tilemap/vislib/geo_point';
-// import { SearchSourceProvider } from 'ui/courier/data_source/search_source';
-// import { FilterBarQueryFilterProvider } from 'ui/filter_bar/query_filter';
-// import { onDashboardPage } from 'ui/kibi/utils/on_page';
 import utils from 'plugins/enhanced_tilemap/utils';
 
 export default class EsLayer {
