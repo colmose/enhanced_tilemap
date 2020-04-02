@@ -4,19 +4,14 @@ import classNames from 'classnames';
 
 import {
   // classNames,
-  EuiCheckbox,
   EuiTreeView,
   EuiI18n,
   EuiIcon,
   EuiScreenReaderOnly,
-  EuiText,
-  // keyCodes,
-  // htmlIdGenerator
+  EuiText
 } from '@elastic/eui';
 
 const EuiTreeViewContext = createContext('');
-// const treeIdGenerator = ('euiTreeView');
-
 
 const displayToClassNameMap = {
   default: null,

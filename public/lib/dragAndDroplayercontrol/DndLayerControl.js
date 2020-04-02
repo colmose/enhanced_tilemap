@@ -125,9 +125,9 @@ function _clearLayerFromMapById(id) {
   });
 }
 
-function _updateMriVisibility(id, enabled) {
+function _updateMriVisibility(path, enabled) {
   for (let i = 0; mrisOnMap.length - 1; i++) {
-    if (mrisOnMap[i].id === id) {
+    if (mrisOnMap[i].path === path) {
       mrisOnMap[i].enabled = enabled;
       break;
     }
