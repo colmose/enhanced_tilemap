@@ -186,7 +186,7 @@ function _updateLayerControl() {
 }
 
 async function getMriLayer(spatialPath, enabled) {
-  const limit = 1000;
+  const limit = 250;
   const resp = await esClient.search({
     index: '.map__*',
     body: {
@@ -216,17 +216,18 @@ async function getMriLayer(spatialPath, enabled) {
   };
 
   let geo;
-  if (resp.hits.total >= 1) {
+  if (resp.hits.total.value >= 1) {
     geo = {
-      type: resp.hits.hits[0]._source.shape.type,
-      field: mainSearchDetails.geoFieldName
+      type: resp.hits.hits[0]._source.geometry.type,
+      field: 'geometry'
     };
   }
 
   options.warning = {};
-  if (resp.hits.total > limit) {
+  if (resp.hits.total.value >= limit) {
     options.warning = { limit };
   }
+
 
   const layer = new EsLayer().createLayer(resp.hits.hits, geo, 'mri', options);
   layer.enabled = enabled;

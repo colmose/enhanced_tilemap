@@ -8,7 +8,11 @@ export default class EsLayer {
   constructor() {
   }
 
+
   createLayer = function (hits, geo, type, options) {
+    function capitalizeFirstLetter(string) {
+      return string.charAt(0).toUpperCase() + string.slice(1);
+    }
     let layer = null;
     const self = this;
 
@@ -22,6 +26,7 @@ export default class EsLayer {
     if (geo) {
       geo.type = geo.type.toLowerCase();
       if ('geo_point' === geo.type || 'point' === geo.type) {
+        options.searchIcon = _.get(options, 'searchIcon', 'fas fa-map-marker-alt');
         const markers = _.map(hits, hit => {
           return self._createMarker(hit, geo.field, options);
         });
@@ -36,12 +41,11 @@ export default class EsLayer {
           if (type === 'poi') {
             geometry = _.get(hit, `_source[${geo.field}]`);
           } else {
-            geometry = hit._source.shape;
+            geometry = hit._source.geometry;
           }
-          if (geometry.type === 'multipolygon') {
+          geometry.type = capitalizeFirstLetter(geometry.type);
+          if (geometry.type === 'Multipolygon') {
             geometry.type === 'MultiPolygon';
-          } else {
-            geometry.type = self.capitalizeFirstLetter(geometry.type);
           }
 
           let popupContent = false;
@@ -229,8 +233,15 @@ export default class EsLayer {
   };
 
   _createMarker = function (hit, geoField, options) {
+    let hitCoords;
+    if (_.has(hit, '_source.geometry.coordinates') && _.has(hit, '_source.geometry.type')) {
+      hitCoords = hit._source.geometry.coordinates;
+    } else {
+      hitCoords = _.get(hit, `_source[${geoField}]`);
+    }
+
     const feature = L.marker(
-      toLatLng(_.get(hit, `_source[${geoField}]`)),
+      toLatLng(hitCoords),
       {
         icon: searchIcon(options.searchIcon, options.color, options.size),
         pane: 'overlayPane'
