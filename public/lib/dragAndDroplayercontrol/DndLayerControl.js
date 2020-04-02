@@ -30,6 +30,7 @@ let _dndListElement;
 let _addLayerElement;
 let _allLayers;
 let esClient;
+let $element;
 let mainSearchDetails;
 
 function _setZIndexOfAnyLayerType(layer, zIndex, leafletMap) {
@@ -185,9 +186,11 @@ function _updateLayerControl() {
 }
 
 async function getMriLayer(spatialPath, enabled) {
+  const limit = 1000;
   const resp = await esClient.search({
     index: '.map__*',
     body: {
+      size: limit,
       query: {
         bool: {
           must: {
@@ -209,6 +212,7 @@ async function getMriLayer(spatialPath, enabled) {
     popupFields: get(resp, 'properties.popup', []),
     indexPattern: mainSearchDetails.indexPattern,
     _siren: mainSearchDetails._siren,
+    $element
   };
 
   let geo;
@@ -219,6 +223,10 @@ async function getMriLayer(spatialPath, enabled) {
     };
   }
 
+  options.warning = {};
+  if (resp.hits.total > limit) {
+    options.warning = { limit };
+  }
 
   const layer = new EsLayer().createLayer(resp.hits.hits, geo, 'mri', options);
   layer.enabled = enabled;
@@ -282,11 +290,12 @@ L.Control.DndLayerControl = L.Control.extend({
     groupCheckboxes: false
   },
 
-  initialize: function (allLayers, es, mSD) {
+  initialize: function (allLayers, es, mSD, $el) {
     _allLayers = allLayers;
     esClient = es;
     mainSearchDetails = mSD;
     this._lastZIndex = 0;
+    $element = $el;
   },
 
   //todo add comments describing functions
@@ -320,14 +329,6 @@ L.Control.DndLayerControl = L.Control.extend({
   addBaseLayer: function (layer, name) {
     this._addLayer(layer, name);
     return this;
-  },
-
-  _getLayer: function (id) {
-    for (let i = 0; i < this._layers.length; i++) {
-      if (this._layers[i] && L.stamp(this._layers[i].layer) === id) {
-        return this._layers[i];
-      }
-    }
   },
 
   _initLayout: function () {
@@ -386,6 +387,6 @@ L.Control.DndLayerControl = L.Control.extend({
   }
 });
 
-L.control.dndLayerControl = function (allLayers, esClient, mainSearchDetails) {
-  return new L.Control.DndLayerControl(allLayers, esClient, mainSearchDetails);
+L.control.dndLayerControl = function (allLayers, esClient, mainSearchDetails, $element) {
+  return new L.Control.DndLayerControl(allLayers, esClient, mainSearchDetails, $element);
 };

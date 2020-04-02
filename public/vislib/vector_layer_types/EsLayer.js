@@ -14,6 +14,14 @@ export default class EsLayer {
   createLayer = function (hits, geo, type, options) {
     let layer = null;
     const self = this;
+
+    //handling too many documents warnings
+    options.$legend = options.$element.find('a.leaflet-control-layers-toggle').get(0);
+    options.$legend.innerHTML = '';
+    if (options.warning && options.warning.limit) {
+      options.$legend.innerHTML = `<i class="fa fa-exclamation-triangle text-color-warning doc-viewer-underscore"></i>`;
+    }
+
     if (geo) {
       geo.type = geo.type.toLowerCase();
       if ('geo_point' === geo.type || 'point' === geo.type) {
@@ -106,9 +114,9 @@ export default class EsLayer {
       layer.id = options.id;
       layer.label = options.displayName;
 
-      if (options.warning && options.warning.poiLimitToDisplay && options.warning.tooManyDocsInfo) {
+      if (options.warning && options.warning.limit) {
         layer.warning = `There are undisplayed POIs for this overlay due
-      to having reached the limit currently set to ${options.warning.poiLimitToDisplay}`;
+      to having reached the limit currently set to ${options.warning.limit}`;
       }
       layer.filterPopupContent = options.filterPopupContent;
       layer.close = options.close;
