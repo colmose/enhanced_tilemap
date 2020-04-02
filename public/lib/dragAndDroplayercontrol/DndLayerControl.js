@@ -170,8 +170,8 @@ function dndRemoveLayerFromControl(newList, id) {
   _leafletMap.fire('removelayer', { id });
 }
 
-function _removeMriFromLayerControlArray(id) {
-  remove(mrisOnMap, (layer) => layer.id === id);
+function _removeMriFromLayerControlArray(path) {
+  remove(mrisOnMap, (layer) => layer.path === path);
 }
 
 function _updateLayerControl() {

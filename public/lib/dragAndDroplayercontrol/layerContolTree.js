@@ -1,5 +1,5 @@
 import React from 'react';
-import { cloneDeep, get, findIndex } from 'lodash';
+import { cloneDeep, findIndex } from 'lodash';
 
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
@@ -13,7 +13,6 @@ import {
 } from '@elastic/eui';
 import { EuiTreeViewCheckbox } from './euiTreeViewCheckbox';
 import { modalWithForm } from './../../vislib/modals/genericModal';
-import { all } from 'bluebird';
 
 function capitalizeFirstLetter(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -32,15 +31,6 @@ export class AddMapLayersModal extends React.Component {
     this.getItems(this.props.esClient);
   }
 
-  // _changeCheckboxStatus = (id) => {
-  //   this.setState(prevState => {
-  //     const list = [...prevState.items];
-  //     const item = this._getItem(id, list, isParentItem);
-  //     item.checked = !item.checked;
-  //     return { items: list };
-  //   });
-  // }
-
   _getParent = (id, list) => {
     const parentArray = id.split('/');
     parentArray.pop();
@@ -57,11 +47,11 @@ export class AddMapLayersModal extends React.Component {
       for (let i = 0; i <= parent.length - 1; i++) {
         const currentParent = parent[i];
         if (currentParent.id === id || id === '') {
-          return parent[i];
+          return currentParent;
         } else if (currentParent.id === id.substring(3)) {
           return parent[i].children[0];
         } else if (id.includes(currentParent.id) && !currentParent.isParentItem) {
-          parent = parent[i].children;
+          parent = currentParent.children;
           break;
         }
       }
@@ -70,10 +60,10 @@ export class AddMapLayersModal extends React.Component {
 
   _calculateAllTypeCounts(list) {
     list.forEach(item => {
-      if (item.children && item.children.length >= 1) {
+      if (item.group) {
         this._calculateAllTypeCounts(item.children);
-        const all = item.children.find(it => it.isParentItem);
-        all.count = item.count - item.children.reduce((acc, it) => it.count + acc , 0);
+        const allItemsLayer = item.children.find(it => it.isParentItem);
+        allItemsLayer.count = item.count - item.children.reduce((acc, childItem) => childItem.count + acc, 0);
       }
     });
   }
@@ -106,12 +96,12 @@ export class AddMapLayersModal extends React.Component {
         parent.icon = <EuiIcon type={'folderClosed'} />;
         parent.iconWhenExpanded = <EuiIcon type={'folderOpen'} />;
 
-        //adding option to select countries in group
+        //adding option to select all layers in group
         if (!parent.hasLayerSelect) {
           parent.hasLayerSelect = true;
           const parentItem = cloneDeep(itemTemplate);
           parentItem.id = `all${parent.id}`;
-          parentItem.label = `All ${parent.label}`;
+          parentItem.label = `${parent.label}`;
           parentItem.path = parent.id;
           parentItem.count = 0;
           parentItem.icon = <EuiIcon type={'visMapRegion'} />;
@@ -166,7 +156,7 @@ export class AddMapLayersModal extends React.Component {
           this.props.mrisOnMap.push(item);
         }
       }
-      if (item.children && item.children.length >= 1) {
+      if (item.group) {
         this._recursivelyDrawItems(item.children, enabled);
       }
     });
@@ -197,7 +187,7 @@ export class AddMapLayersModal extends React.Component {
         } else {
           item.filtered = false;
         }
-        if (item.children && item.children.length >= 1) {
+        if (item.group) {
           recursivelyFilterList(item.children);
         }
       });
@@ -215,47 +205,47 @@ export class AddMapLayersModal extends React.Component {
   _recursivelyToggleItemsInGroup(list, checked) {
     list.forEach(item => {
       item.checked = checked;
-      if (item.children && item.children.length >= 1) {
+      if (item.group) {
         this._recursivelyToggleItemsInGroup(item.children, checked);
       }
     });
   }
 
-  _recursivelyToggleIndeterminate(list) {
-    function _checkIfAnyItemInGroupAndSubGroupChecked(items) {
-      let checkedCount = 0;
-      let totalCount = 0;
+  _checkIfAnyItemInGroupAndSubGroupChecked(items) {
+    let checkedCount = 0;
+    let totalCount = 0;
 
-      function countChecked(items) {
-        items.forEach(item => {
-          if (!item.group) {
-            if (item.checked) {
-              checkedCount += 1;
-            }
-            totalCount += 1;
+    function countChecked(items) {
+      items.forEach(item => {
+        if (!item.group) {
+          if (item.checked) {
+            checkedCount += 1;
           }
-          if (item.children && item.children.length >= 1) {
-            countChecked(item.children);
-          }
-
-        });
-      }
-      countChecked(items);
-
-      return checkedCount !== totalCount && checkedCount >= 1;
-    }
-    list.forEach(item => {
-      const areChildren = item.children && item.children.length >= 1;
-      if (areChildren) {
-        const someItemInGroupChecked = _checkIfAnyItemInGroupAndSubGroupChecked(item.children);
-        if (item.group) {
-          if (someItemInGroupChecked) {
-            item.indeterminate = true;
-          } else {
-            item.indeterminate = false;
-          }
+          totalCount += 1;
         }
-        if (areChildren) {
+        if (item.group) {
+          countChecked(item.children);
+        }
+
+      });
+    }
+    countChecked(items);
+
+    return {
+      someItemsChecked: checkedCount !== totalCount && checkedCount >= 1,
+      noItemsChecked: checkedCount === 0
+    };
+  }
+
+  _recursivelyToggleIndeterminate(list) {
+    list.forEach(item => {
+      if (item.group) {
+        const check = this._checkIfAnyItemInGroupAndSubGroupChecked(item.children);
+        if (item.group) {
+          item.indeterminate = check.someItemsChecked;
+          item.checked = !check.noItemsChecked;
+        }
+        if (item.group) {
           this._recursivelyToggleIndeterminate(item.children);
         }
       }
@@ -267,13 +257,11 @@ export class AddMapLayersModal extends React.Component {
     this.setState(prevState => {
       const list = [...prevState.items];
       const item = this._getItem(event.id, list);
+      item.checked = event.checked;
       if (event.isGroup) {
-        item.checked = event.checked;
-        if (item.children && item.children.length >= 1) {
+        if (item.group) {
           this._recursivelyToggleItemsInGroup(item.children, event.checked);
         }
-      } else {
-        item.checked = event.checked;
       }
       this._recursivelyToggleIndeterminate(list);
       return {
