@@ -13,6 +13,7 @@ import {
 } from '@elastic/eui';
 import { EuiTreeViewCheckbox } from './euiTreeViewCheckbox';
 import { modalWithForm } from './../../vislib/modals/genericModal';
+import { all } from 'bluebird';
 
 function capitalizeFirstLetter(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
