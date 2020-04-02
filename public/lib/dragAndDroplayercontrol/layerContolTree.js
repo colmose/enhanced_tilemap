@@ -241,13 +241,9 @@ export class AddMapLayersModal extends React.Component {
     list.forEach(item => {
       if (item.group) {
         const check = this._checkIfAnyItemInGroupAndSubGroupChecked(item.children);
-        if (item.group) {
-          item.indeterminate = check.someItemsChecked;
-          item.checked = !check.noItemsChecked;
-        }
-        if (item.group) {
-          this._recursivelyToggleIndeterminate(item.children);
-        }
+        item.indeterminate = check.someItemsChecked;
+        item.checked = !check.noItemsChecked;
+        this._recursivelyToggleIndeterminate(item.children);
       }
     });
   }
