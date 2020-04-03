@@ -77,10 +77,15 @@ function _redrawOverlays() {
   _clearAllLayersFromMap();
   let zIndex = 0;
   for (let i = (_allLayers.length - 1); i >= 0; i--) {
-    if (_allLayers[i].enabled) {
-      _setZIndexOfAnyLayerType(_allLayers[i], zIndex, _leafletMap);
-      _leafletMap.addLayer(_allLayers[i]);
+    const layer = _allLayers[i];
+    if (layer.enabled) {
+      _setZIndexOfAnyLayerType(layer, zIndex, _leafletMap);
+      _leafletMap.addLayer(layer);
       zIndex++;
+      _leafletMap.fire('showlayer', {
+        id: layer.id,
+        enabled: layer.enabled
+      });
     }
   }
 }
@@ -126,9 +131,10 @@ function _clearLayerFromMapById(id) {
   });
 }
 
-function _updateMriVisibility(path, enabled) {
+function _updateMriVisibility(id, enabled) {
+  // when stored in layer control, mri path is the id
   for (let i = 0; mrisOnMap.length - 1; i++) {
-    if (mrisOnMap[i].path === path) {
+    if (mrisOnMap[i].id === id || mrisOnMap[i].id.substring(3) === id) {
       mrisOnMap[i].enabled = enabled;
       break;
     }
@@ -137,23 +143,18 @@ function _updateMriVisibility(path, enabled) {
 
 function dndLayerVisibilityChange(enabled, layer, index) {
   _allLayers[index].enabled = enabled;
-  let type;
   if (enabled) {
     _redrawOverlays();
-    type = 'showlayer';
   } else {
     _clearLayerFromMapById(layer.id);
-    type = 'hidelayer';
+    _leafletMap.fire('hidelayer', {
+      id: layer.id,
+      enabled
+    });
   }
-
   if (layer.type === 'mripoint' || layer.type === 'mrishape') {
     _updateMriVisibility(layer.id, enabled);
   }
-
-  _leafletMap.fire(type, {
-    id: layer.id,
-    enabled
-  });
 }
 
 function dndListOrderChange(newList) {
