@@ -67,11 +67,10 @@ define(function (require) {
       savedSearches.get(this.savedSearchId).then(savedSearch => {
         const geoFields = getGeoFields(savedSearch);
 
-        const geo = geoFields.find(field => {
-          return field.name === this.geoField;
-        });
-        geo.field = this.geoField;
-
+        const geo = {
+          type: geoFields[0].type,
+          field: geoFields[0].name
+        };
 
         const processLayer = () => {
 
@@ -166,7 +165,7 @@ define(function (require) {
               //in ES Response watcher
               if (this.isInitialDragAndDrop) {
                 this.params.filterPopupContent = options.filterPopupContent;
-                this.params.searchIcon = options.$legend.searchIcon;
+                this.params.searchIcon = options.searchIcon;
                 this.params.savedDashboardTitleInitial = this.params.savedDashboardTitle;
                 this.params.draggedStateInitial = this.params.draggedState;
                 this.params.geoField = geo.field;
