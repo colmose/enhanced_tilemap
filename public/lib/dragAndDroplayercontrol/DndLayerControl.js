@@ -44,7 +44,7 @@ function _setZIndexOfAnyLayerType(layer, zIndex, leafletMap) {
       //AND require a 'hard' z-index to be set using setZIndexOffset
       //the default z-index is based on latitude and the below code resets the default
       const pos = leafletMap.latLngToLayerPoint(marker.getLatLng()).round();
-      marker.setZIndexOffset(zIndex - pos.y + 198);
+      marker.setZIndexOffset(zIndex - pos.y + 300);// 198); //for now, we don't need to layer marker types with overlay types
     });
   } else {
     layer.setZIndex(zIndex);
