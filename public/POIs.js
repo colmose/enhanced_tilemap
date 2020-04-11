@@ -9,7 +9,7 @@ import utils from 'plugins/enhanced_tilemap/utils';
 
 //react modal
 import React from 'react';
-import { modalWithForm } from './vislib/modals/genericModal';
+import { modalWithForm } from './vislib/modalhttps://github.com/sirensolutions/enhanced_tilemap/pull/196/conflict?name=public%252FPOIs.js&ancestor_oid=e665e8077fc7cfab65aee5d992ad3e9f0103dbfb&base_oid=94c0ac1e1f5a59c537a6909439c90eea41daad35&head_oid=1fbd9affce6d79eea2743c2627e96de82e591e34s/genericModal';
 import { render, unmountComponentAtNode } from 'react-dom';
 import {
   EuiFormRow,
