@@ -138,11 +138,17 @@ define(function (require) {
               searchSource.inherits(savedSearch.searchSource);
               //_siren from main searchSource is used
               searchSource._siren = options.searchSource._siren;
-              let allFilters = [createMapExtentFilter(options.mapExtentFilter)];
+              let allFilters;
               if (onDashboardPage()) {
-                allFilters = allFilters.concat([...searchSource.filter()]);
+                allFilters = [
+                  ...searchSource.filter(),
+                  createMapExtentFilter(options.mapExtentFilter)
+                ];
               } else {
-                allFilters = allFilters.concat(queryFilter.getFilters());
+                allFilters = [
+                  ...queryFilter.getFilters(),
+                  createMapExtentFilter(options.mapExtentFilter)
+                ];
               }
               searchSource.filter(allFilters);
             } else {
