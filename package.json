@@ -24,7 +24,6 @@
     "leaflet-mouse-position": "1.2.0",
     "leaflet.nontiledlayer": "1.0.7",
     "mgrs": "~1.0.0",
-    "react-beautiful-dnd": "^12.2.0",
     "react-bootstrap": "^1.0.0-beta.17",
     "react-ellipsis-with-tooltip": "^1.1.1",
     "scripting-interfaces": "sirensolutions/scripting-interfaces#v1.0.0",

@@ -5,15 +5,11 @@ import EllipsisWithTooltip from 'react-ellipsis-with-tooltip';
 
 import {
   EuiCheckbox,
-  EuiIconTip
+  EuiIconTip,
+  EuiDragDropContext,
+  EuiDroppable,
+  EuiDraggable
 } from '@elastic/eui';
-
-import {
-  DragDropContext,
-  Droppable,
-  Draggable
-} from 'react-beautiful-dnd';
-
 
 const getItemStyle = (isDragging, draggableStyle) => ({
   // some basic styles to make the items look a bit nicer
@@ -33,6 +29,7 @@ const getItemStyle = (isDragging, draggableStyle) => ({
 
 const getListStyle = () => ({
   padding: `6px 0`
+  // color: 	'#FFFFFF'
 });
 
 // a little function to help us with reordering the result
@@ -109,8 +106,9 @@ export class LayerControlDnd extends React.Component {
   render() {
     return (
       <React.Fragment>
-        <DragDropContext onDragEnd={this.onDragEnd}>
-          <Droppable droppableId="DROPPABLE_AREA_BARE">
+        <EuiDragDropContext onDragEnd={this.onDragEnd}>
+          <EuiDroppable
+            droppableId="DROPPABLE_AREA_BARE">
 
             {(provided, snapshot) => (
               <div
@@ -121,7 +119,7 @@ export class LayerControlDnd extends React.Component {
               >
                 {this.state.dndCurrentListOrder.map((layer, index) => (
 
-                  <Draggable key={layer.id} draggableId={layer.id} index={index}>
+                  <EuiDraggable key={layer.id} draggableId={layer.id} index={index}>
                     {(provided, snapshot) => (
                       <div className='layer-control-row'
                         ref={provided.innerRef}
@@ -203,14 +201,14 @@ export class LayerControlDnd extends React.Component {
                         {/* </span> */}
                       </div>
                     )}
-                  </Draggable>
+                  </EuiDraggable>
                 ))}
                 {provided.placeholder}
               </div>
             )}
-          </Droppable>
-        </DragDropContext>
-      </React.Fragment>
+          </EuiDroppable>
+        </EuiDragDropContext>
+      </React.Fragment >
     );
   }
 }
