@@ -134,7 +134,7 @@ export class AddMapLayersModal extends React.Component {
             terms: {
               field: 'spatial_path',
               order: { _key: 'asc' },
-              size: 9999
+              size: 1000
             }
           }
         },
