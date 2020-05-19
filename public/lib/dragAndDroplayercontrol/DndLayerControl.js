@@ -255,6 +255,7 @@ function getExtendedMapControl() {
     const visibleForCurrentMapZoom = _visibleForCurrentMapZoom(config);
     const limit = 250;
     const filter = mainSearchDetails.mapExtentFilter();
+    // const isPoint = geometryTypeOfSpatialPaths[spatialPath] === 'Point';
     let noHitsForCurrentExtent = false;
     let resp;
     if (visibleForCurrentMapZoom) {

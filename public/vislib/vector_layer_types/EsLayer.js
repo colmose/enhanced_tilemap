@@ -1,15 +1,16 @@
 const _ = require('lodash');
 const L = require('leaflet');
-import { searchIcon } from 'plugins/enhanced_tilemap/vislib/searchIcon';
 import { toLatLng } from 'plugins/enhanced_tilemap/vislib/geo_point';
 import utils from 'plugins/enhanced_tilemap/utils';
+import { markerClusteringIcon } from 'plugins/enhanced_tilemap/vislib/icons/markerClusteringIcon';
+import { searchIcon } from 'plugins/enhanced_tilemap/vislib/icons/searchIcon';
 
 export default class EsLayer {
   constructor() {
   }
 
 
-  createLayer = function (hits, geo, type, options) {
+  createLayer = function (hits, aggs, geo, type, options) {
     const layerControl = options.$element.find('.leaflet-control-layers');
     let layer = null;
     const self = this;
@@ -23,25 +24,17 @@ export default class EsLayer {
       options.$legend.innerHTML = `<i class="fa fa-exclamation-triangle text-color-warning doc-viewer-underscore"></i>`;
     }
 
-    if (geo.field) {
+    if (hits.length >= 1 || aggs.length >= 1) {
       //using layer level config
       const layerControlIcon = options.icon;
       const layerControlColor = options.color;
       geo.type = geo.type.toLowerCase();
       if ('geo_point' === geo.type || 'point' === geo.type) {
         options.icon = _.get(options, 'icon', 'fas fa-map-marker-alt');
-        const markers = _.map(hits, hit => {
 
-          if (type === 'es_ref') {
-            self.assignFeatureLevelConfigurations(hit, geo.type, options);
-          }
-          const marker = self._createMarker(hit, geo.field, options);
-          if (options.popupFields.length) {
-            marker.content = this._popupContent(hit, options.popupFields);
-          }
-          return marker;
-        });
-        layer = new L.FeatureGroup(markers);
+        const featuresForLayer = self._makeIndividualPoints(hits, geo, type, options)
+          .concat(self._makeClusterPoints(aggs, geo, options));
+        layer = new L.FeatureGroup(featuresForLayer);
         layer.type = type + '_point';
         layer.options = { pane: 'overlayPane' };
         layer.icon = `<i class="${layerControlIcon}" style="color:${layerControlColor};"></i>`;
@@ -256,7 +249,7 @@ export default class EsLayer {
     polygon.on('click', polygon._click);
   };
 
-  _createMarker = function (hit, geoField, options) {
+  _createMarker = function (hit, geoField, isIndividualPoint, options) {
     let hitCoords;
     if (_.has(hit, '_source.geometry.coordinates') && _.has(hit, '_source.geometry.type')) {
       hitCoords = hit._source.geometry.coordinates;
@@ -270,6 +263,11 @@ export default class EsLayer {
         icon: searchIcon(options.icon, options.color, options.size),
         pane: 'overlayPane'
       });
+
+    if (options.popupFields.length && isIndividualPoint) {
+      feature.content = this._popupContent(hit, options.popupFields);
+    }
+
     return feature;
   };
 
@@ -290,7 +288,44 @@ export default class EsLayer {
       dlContent = popupFields;
     }
     return `<dl>${dlContent}</dl>`;
-  };
+  }
+
+  _makeIndividualPoints = (features, geo, type, options) => {
+    const markerList = [];
+    features.forEach((feature) => {
+      if (type === 'es_ref') {
+        this.assignFeatureLevelConfigurations(feature, geo.type, options);
+      }
+
+      markerList.push(this._createMarker(feature, geo.field, true, options));
+    });
+    return markerList;
+  }
+
+  _makeClusterPoints = (features, geo, options) => {
+    const markerList = [];
+    let maxAggDocCount = 0;
+    let centerLat;
+    let centerLon;
+
+    features.forEach(feature => {
+      if (feature.properties.value > maxAggDocCount) maxAggDocCount = feature.properties.value;
+    });
+
+    features.forEach((feature) => {
+      const markerCount = _.get(feature, 'properties.value');
+      centerLat = feature.geometry.coordinates[1];
+      centerLon = feature.geometry.coordinates[0];
+
+      const marker = L.marker([centerLat, centerLon], {
+        icon: markerClusteringIcon(markerCount, maxAggDocCount)
+      });
+
+      this._createMarker(feature, geo.field, false, options);
+      markerList.push(marker);
+    });
+    return markerList;
+  }
 
   capitalizeFirstLetter = (string) => {
     return string.charAt(0).toUpperCase() + string.slice(1);
