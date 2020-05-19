@@ -610,6 +610,7 @@ define(function (require) {
         getGeoField,
         getSirenMeta,
         mapExtentFilter: getGeoShapeBox,
+        dsl: $scope.vis.aggs.toDsl(),
         storedLayerConfig: getStoredLayerConfig(),
         uiState: $scope.vis.getUiState()
       };

@@ -6,6 +6,7 @@ import { render, unmountComponentAtNode } from 'react-dom';
 import { showAddLayerTreeModal } from './layerContolTree';
 import { LayerControlDnd } from './uiLayerControlDnd';
 import EsLayer from './../../vislib/vector_layer_types/EsLayer';
+import utils from 'plugins/enhanced_tilemap/utils';
 
 import { EuiButton } from '@elastic/eui';
 
@@ -18,14 +19,14 @@ function getExtendedMapControl() {
   let esClient;
   let $element;
   let mainSearchDetails;
-  let _currentZoom;
+  let currentZoom;
   let geometryTypeOfSpatialPaths;
   let uiState;
 
   const _debouncedRedrawOverlays = debounce(_redrawOverlays, 400);
 
   function _updateCurrentZoom() {
-    _currentZoom = _leafletMap.getZoom();
+    currentZoom = _leafletMap.getZoom();
   }
 
   function _isHeatmapLayer(layer) {
@@ -33,7 +34,7 @@ function getExtendedMapControl() {
   }
 
   function _visibleForCurrentMapZoom(config) {
-    return _currentZoom >= config.minZoom && _currentZoom <= config.maxZoom;
+    return currentZoom >= config.minZoom && currentZoom <= config.maxZoom;
   }
 
   function _setAvailableConfigs(config, foundConfig) {
@@ -250,15 +251,47 @@ function getExtendedMapControl() {
     return existsQueryArray;
   }
 
+  function _makeClusteringAggsQuery(dsl) {
+    const newDsl = cloneDeep(dsl);
+    newDsl[2].aggs[3].geo_centroid.field = 'geometry';
+    newDsl[2].geohash_grid.field = 'geometry';
+    newDsl[2].geohash_grid.precision = utils.getMarkerClusteringPrecision(currentZoom);
+    return newDsl;
+  }
+
   async function getEsRefLayer(spatialPath, enabled) {
     const config = _getLayerLevelConfig(spatialPath, mainSearchDetails.storedLayerConfig);
     const visibleForCurrentMapZoom = _visibleForCurrentMapZoom(config);
     const limit = 250;
     const filter = mainSearchDetails.mapExtentFilter();
-    // const isPoint = geometryTypeOfSpatialPaths[spatialPath] === 'Point';
+
     let noHitsForCurrentExtent = false;
+    let aggsResp;
     let resp;
+
+    const isPoint = geometryTypeOfSpatialPaths[spatialPath] === 'Point';
+
     if (visibleForCurrentMapZoom) {
+      if (isPoint) {
+        aggsResp = await esClient.search({
+          index: '.map__*',
+          body: {
+            size: limit,
+            query: {
+              bool: {
+                must: {
+                  term: {
+                    'spatial_path.raw': spatialPath
+                  }
+                },
+                filter
+              }
+            },
+            aggs: _makeClusteringAggsQuery(mainSearchDetails.dsl)
+          }
+        });
+        console.log(aggsResp);
+      }
       resp = await esClient.search({
         index: '.map__*',
         body: {
