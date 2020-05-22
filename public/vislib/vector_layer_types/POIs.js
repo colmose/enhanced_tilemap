@@ -185,35 +185,12 @@ define(function (require) {
         const isAgg = true;
         const aggSearchSource = await createSearchSource(new SearchSource(), savedSearch, geo, isAgg);
         const aggResp = await aggSearchSource.fetch();
-
-
         const respProcessor = new RespProcessor(options.vis, buildChartData, utils);
         const aggChartData = respProcessor.process(aggResp);
-        const individualDocFilters = {
-          bool: {
-            should: []
-          }
-        };
 
-        let totalNumberOfDocsToRetrieve = 0;
-        let aggFeatures;
-        if (_.has(aggChartData, 'geoJson.features')) {
-          aggFeatures = aggChartData.geoJson.features;
-          for (let i = aggFeatures.length - 1; i >= 0; i--) {
-            const documentsInCurrentFeature = aggFeatures[i].properties.value;
-            if ((totalNumberOfDocsToRetrieve + documentsInCurrentFeature) < this.limit) {
+        const processedAggResp = utils.processAggRespForMarkerClustering(aggChartData, geoFilter, this.limit);
 
-              const rectangle = aggFeatures[i].properties.rectangle;
-              const topLeft = { lat: rectangle[3][0], lon: rectangle[3][1] };
-              const bottomRight = { lat: rectangle[1][0], lon: rectangle[1][1] };
-
-              const geoBoundingBoxFilter = geoFilter.rectFilter(this.geoField, 'geo_point', topLeft, bottomRight);
-              individualDocFilters.bool.should.push(geoBoundingBoxFilter);
-              totalNumberOfDocsToRetrieve += aggFeatures[i].properties.value;
-              aggFeatures.splice(i, 1);
-            }
-          }
-
+        if (processedAggResp.aggFeatures) {
           const docSearchSource = await createSearchSource(new SearchSource(), savedSearch, geo);
           const docResp = await docSearchSource.fetch();
 
@@ -234,7 +211,7 @@ define(function (require) {
               }
             }
           }
-          return callback(createEsLayer.createLayer(docResp.hits.hits, aggFeatures, geo, 'poi', options));
+          return callback(createEsLayer.createLayer(docResp.hits.hits, processedAggResp.aggFeatures, geo, 'poi', options));
         }
       };
 

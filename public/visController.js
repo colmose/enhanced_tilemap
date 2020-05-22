@@ -609,8 +609,10 @@ define(function (require) {
         getIndexPatternId,
         getGeoField,
         getSirenMeta,
-        mapExtentFilter: getGeoShapeBox,
-        dsl: $scope.vis.aggs.toDsl(),
+        geoShapeMapExtentFilter: getGeoShapeBox,
+        geoPointMapExtentFilter: getGeoBoundingBox,
+        respProcessor: new RespProcessor($scope.vis, buildChartData, utils),
+        geoFilter,
         storedLayerConfig: getStoredLayerConfig(),
         uiState: $scope.vis.getUiState()
       };

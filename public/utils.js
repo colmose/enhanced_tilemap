@@ -250,6 +250,35 @@ define(function (require) {
         21: 6
       };
       return clusteringPrecisionBasedOnZoom[currentZoom];
+    },
+    processAggRespForMarkerClustering: function (aggChartData, geoFilter, limit) {
+      const docFilters = {
+        bool: {
+          should: []
+        }
+      };
+
+      let aggFeatures;
+      let totalNumberOfDocsToRetrieve = 0;
+      if (_.has(aggChartData, 'geoJson.features')) {
+        aggFeatures = aggChartData.geoJson.features;
+        for (let i = aggFeatures.length - 1; i >= 0; i--) {
+          const documentsInCurrentFeature = aggFeatures[i].properties.value;
+          if ((totalNumberOfDocsToRetrieve + documentsInCurrentFeature) < limit) {
+
+            const rectangle = aggFeatures[i].properties.rectangle;
+            const topLeft = { lat: rectangle[3][0], lon: rectangle[3][1] };
+            const bottomRight = { lat: rectangle[1][0], lon: rectangle[1][1] };
+
+            const geoBoundingBoxFilter = geoFilter.rectFilter(this.geoField, 'geo_point', topLeft, bottomRight);
+            docFilters.bool.should.push(geoBoundingBoxFilter);
+            totalNumberOfDocsToRetrieve += aggFeatures[i].properties.value;
+            aggFeatures.splice(i, 1);
+          }
+        }
+        return { aggFeatures, docFilters };
+
+      }
     }
   };
 });

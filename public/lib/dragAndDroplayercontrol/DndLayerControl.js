@@ -251,84 +251,120 @@ function getExtendedMapControl() {
     return existsQueryArray;
   }
 
-  function _makeClusteringAggsQuery(dsl) {
-    const newDsl = cloneDeep(dsl);
-    newDsl[2].aggs[3].geo_centroid.field = 'geometry';
-    newDsl[2].geohash_grid.field = 'geometry';
-    newDsl[2].geohash_grid.precision = utils.getMarkerClusteringPrecision(currentZoom);
-    return newDsl;
+  function _getAggsObject(mapExtentFilter, spatialPath, zoom) {
+    //temporary update of map extent filter
+    mapExtentFilter = {
+      geo_bounding_box: {
+        geometry: {
+          top_left: mapExtentFilter.geo_bounding_box.top_left,
+          bottom_right: mapExtentFilter.geo_bounding_box.bottom_right
+        }
+      }
+    };
+
+    return {
+      2: {
+        filter: {
+          bool: {
+            must: [
+              {
+                match: {
+                  geometrytype: 'Point'
+                }
+              },
+              {
+                match: {
+                  'spatial_path.raw': spatialPath
+                }
+              },
+              mapExtentFilter
+            ]
+          }
+        },
+        aggs: {
+          filtered_geohash: {
+            geohash_grid: {
+              field: 'geometry',
+              precision: utils.getMarkerClusteringPrecision(zoom)
+            },
+            aggs: {
+              3: {
+                geo_centroid: {
+                  field: 'geometry'
+                }
+              }
+            }
+          }
+        }
+      }
+    };
   }
 
+  function _getQueryTemplate(spatialPath, filter, limit) {
+    const queryTemplate = {
+      index: '.map__*',
+      body: {
+        size: limit,
+        query: {
+          bool: {
+            must: {
+              term: {
+                'spatial_path.raw': spatialPath
+              }
+            }
+          }
+        }
+      }
+    };
+
+    if (filter) {
+      queryTemplate.body.query.bool.filter = filter;
+    }
+
+    return queryTemplate;
+  }
+
+  function aggResponseCheck(resp) {
+    return resp.aggregations && resp.aggregations[2] && resp.aggregations[2].buckets && resp.aggregations[2].buckets.length > 0;
+  }
   async function getEsRefLayer(spatialPath, enabled) {
     const config = _getLayerLevelConfig(spatialPath, mainSearchDetails.storedLayerConfig);
     const visibleForCurrentMapZoom = _visibleForCurrentMapZoom(config);
-    const limit = 250;
-    const filter = mainSearchDetails.mapExtentFilter();
+    const limit = 400;
 
     let noHitsForCurrentExtent = false;
-    let aggsResp;
+    let query;
+    let processedAggResp;
     let resp;
-
-    const isPoint = geometryTypeOfSpatialPaths[spatialPath] === 'Point';
-
+    let filter;
     if (visibleForCurrentMapZoom) {
-      if (isPoint) {
-        aggsResp = await esClient.search({
-          index: '.map__*',
-          body: {
-            size: limit,
-            query: {
-              bool: {
-                must: {
-                  term: {
-                    'spatial_path.raw': spatialPath
-                  }
-                },
-                filter
-              }
-            },
-            aggs: _makeClusteringAggsQuery(mainSearchDetails.dsl)
-          }
-        });
-        console.log(aggsResp);
-      }
-      resp = await esClient.search({
-        index: '.map__*',
-        body: {
-          size: limit,
-          query: {
-            bool: {
-              must: {
-                term: {
-                  'spatial_path.raw': spatialPath
-                }
-              },
-              filter
-            }
-          }
+      if (geometryTypeOfSpatialPaths[spatialPath] === 'point') {
+        query = _getQueryTemplate(spatialPath, null, 0);
+        query.index = '.map__point__*';
+        query.body.query = { match_all: {} };
+        query.body.aggs = _getAggsObject(mainSearchDetails.geoPointMapExtentFilter(), spatialPath, currentZoom);
+        const aggResp = await esClient.search(query);
+        const aggChartData = mainSearchDetails.respProcessor.process(aggResp);
+        processedAggResp = utils.processAggRespForMarkerClustering(aggChartData, mainSearchDetails.geoFilter, limit);
+
+        if (processedAggResp.aggFeatures) {
+          query = _getQueryTemplate(spatialPath, filter, 100);
+          resp = await esClient.search(query);
         }
-      });
+      } else {
+        filter = mainSearchDetails.geoShapeMapExtentFilter();
+        query = _getQueryTemplate(spatialPath, filter, limit);
+        query.index = '.map__polygon__*';
+        resp = await esClient.search(query);
+      }
     }
 
     if (!resp) {
-      //getting first object if not visible
       noHitsForCurrentExtent = true;
-      resp = await esClient.search({
-        index: '.map__*',
-        body: {
-          size: 1,
-          query: {
-            bool: {
-              must: {
-                term: {
-                  'spatial_path.raw': spatialPath
-                }
-              },
-              should: _makeExistsForConfigFieldTypes(config)
-            }
-          }
-        }
-      });
+      //getting first object if not visible
+      query = _getQueryTemplate(spatialPath, null, 1);
+      query.body.query.bool.should = _makeExistsForConfigFieldTypes(config);
+      resp = await esClient.search(query);
     }
 
     let hits = resp.hits.hits;
@@ -354,9 +390,9 @@ function getExtendedMapControl() {
     });
 
     let geo;
-    if (hits[0] && hits[0]._source && hits[0]._source.type) {
+    if (hits[0] && hits[0]._source && hits[0]._source.geometrytype) {
       geo = {
-        type: hits[0]._source.geometry.type,
+        type: hits[0]._source.geometrytype,
         field: 'geometry'
       };
     } else {
@@ -374,7 +410,7 @@ function getExtendedMapControl() {
       options.warning = { limit };
     }
 
-    const layer = new EsLayer().createLayer(hits, geo, 'es_ref', options);
+    const layer = new EsLayer().createLayer(hits, processedAggResp.aggFeatures, geo, 'es_ref', options);
     layer.enabled = enabled;
     layer.close = true;
     return layer;
@@ -440,7 +476,7 @@ function getExtendedMapControl() {
           }
         }
       },
-      _source: ['geometry', 'spatial_path'],
+      _source: ['geometrytype', 'spatial_path'],
       size: 1
     };
 
@@ -467,7 +503,7 @@ function getExtendedMapControl() {
         const spaitalPathSource = spatialPathDoc.hits.hits[0]._source;
 
         let geometryType = 'point';
-        if (spaitalPathSource.geometry.type.includes('Polygon')) {
+        if (spaitalPathSource.geometrytype.includes('Polygon')) {
           geometryType = 'polygon';
         }
 
@@ -512,7 +548,7 @@ function getExtendedMapControl() {
       }
     });
 
-    if (resp.aggregations && resp.aggregations[2] && resp.aggregations[2].buckets) {
+    if (aggResponseCheck(resp)) {
       return resp;
     }
   }
@@ -522,7 +558,7 @@ function getExtendedMapControl() {
     // a check if there are any stored layers
     if (resp) {
       const aggs = resp.aggregations[2].buckets;
-      geometryTypeOfSpatialPaths = _getGeometryTypeOfSpatialPaths(aggs);
+      geometryTypeOfSpatialPaths = await _getGeometryTypeOfSpatialPaths(aggs);
       const savedStoredLayers = [];
 
       aggs.forEach(agg => {
