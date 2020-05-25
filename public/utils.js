@@ -251,7 +251,7 @@ define(function (require) {
       };
       return clusteringPrecisionBasedOnZoom[currentZoom];
     },
-    processAggRespForMarkerClustering: function (aggChartData, geoFilter, limit) {
+    processAggRespForMarkerClustering: function (aggChartData, geoFilter, limit, geoField) {
       const docFilters = {
         bool: {
           should: []
@@ -270,15 +270,14 @@ define(function (require) {
             const topLeft = { lat: rectangle[3][0], lon: rectangle[3][1] };
             const bottomRight = { lat: rectangle[1][0], lon: rectangle[1][1] };
 
-            const geoBoundingBoxFilter = geoFilter.rectFilter(this.geoField, 'geo_point', topLeft, bottomRight);
+            const geoBoundingBoxFilter = geoFilter.rectFilter(geoField, 'geo_point', topLeft, bottomRight);
             docFilters.bool.should.push(geoBoundingBoxFilter);
             totalNumberOfDocsToRetrieve += aggFeatures[i].properties.value;
             aggFeatures.splice(i, 1);
           }
         }
-        return { aggFeatures, docFilters };
-
       }
+      return { aggFeatures, docFilters };
     }
   };
 });

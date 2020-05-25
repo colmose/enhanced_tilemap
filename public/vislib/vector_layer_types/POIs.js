@@ -81,7 +81,7 @@ define(function (require) {
        * @param {object} geo: an object containing the field and type of the configured geofield
        * @param {boolean} isAgg: a boolean to indicate if an aggregation query is required
        */
-      const createSearchSource = async (searchSource, savedSearch, geo, isAgg = false) => {
+      const createSearchSource = async (searchSource, savedSearch, geo, docFilters) => {
         if (this.draggedState) {
           //For drag and drop overlays
           if (this.isInitialDragAndDrop) {
@@ -131,6 +131,11 @@ define(function (require) {
                 createMapExtentFilter(options.mapExtentFilter)
               ];
             }
+
+            if (docFilters) {
+              allFilters.push(docFilters);
+            }
+
             searchSource.filter(allFilters);
           } else {
             //Do not filter POIs by time so can not inherit from rootSearchSource
@@ -140,7 +145,7 @@ define(function (require) {
             searchSource.filter(createMapExtentFilter(options.mapExtentFilter));
           }
         }
-        if (isAgg) {
+        if (!docFilters) {
           searchSource.aggs(function () {
             options.vis.requesting();
             options.dsl[2].aggs.filtered_geohash.geohash_grid.precision = utils.getMarkerClusteringPrecision(options.zoom);
@@ -166,6 +171,11 @@ define(function (require) {
       };
 
       const processLayer = async () => {
+        let docResp = {
+          hits: {
+            hits: []
+          }
+        };
 
         options.popupFields = this.popupFields;
         //creating icon and title from search for map and layerControl
@@ -182,17 +192,16 @@ define(function (require) {
           options.color = savedSearch.siren.ui.color;
         }
 
-        const isAgg = true;
-        const aggSearchSource = await createSearchSource(new SearchSource(), savedSearch, geo, isAgg);
+        const aggSearchSource = await createSearchSource(new SearchSource(), savedSearch, geo);
         const aggResp = await aggSearchSource.fetch();
         const respProcessor = new RespProcessor(options.vis, buildChartData, utils);
         const aggChartData = respProcessor.process(aggResp);
 
-        const processedAggResp = utils.processAggRespForMarkerClustering(aggChartData, geoFilter, this.limit);
+        const processedAggResp = utils.processAggRespForMarkerClustering(aggChartData, geoFilter, this.limit, geo.field);
 
         if (processedAggResp.aggFeatures) {
-          const docSearchSource = await createSearchSource(new SearchSource(), savedSearch, geo);
-          const docResp = await docSearchSource.fetch();
+          const docSearchSource = await createSearchSource(new SearchSource(), savedSearch, geo, processedAggResp.docFilters);
+          docResp = await docSearchSource.fetch();
 
           if (this.draggedState) {
             //For drag and drop overlays
@@ -211,8 +220,8 @@ define(function (require) {
               }
             }
           }
-          return callback(createEsLayer.createLayer(docResp.hits.hits, processedAggResp.aggFeatures, geo, 'poi', options));
         }
+        return callback(createEsLayer.createLayer(docResp.hits.hits, processedAggResp.aggFeatures, geo, 'poi', options));
       };
 
       const geoFieldSelectModal = () => {

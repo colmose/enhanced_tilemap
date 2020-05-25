@@ -304,7 +304,6 @@ function getExtendedMapControl() {
     const queryTemplate = {
       index: '.map__*',
       body: {
-        size: limit,
         query: {
           bool: {
             must: {
@@ -321,6 +320,10 @@ function getExtendedMapControl() {
       queryTemplate.body.query.bool.filter = filter;
     }
 
+    if (limit) {
+      queryTemplate.body.size = limit;
+    }
+
     return queryTemplate;
   }
 
@@ -330,11 +333,13 @@ function getExtendedMapControl() {
   async function getEsRefLayer(spatialPath, enabled) {
     const config = _getLayerLevelConfig(spatialPath, mainSearchDetails.storedLayerConfig);
     const visibleForCurrentMapZoom = _visibleForCurrentMapZoom(config);
-    const limit = 400;
+    const limit = 250;
 
     let noHitsForCurrentExtent = false;
     let query;
-    let processedAggResp;
+    let processedAggResp = {
+      aggFeatures: []
+    };
     let resp;
     let filter;
     if (visibleForCurrentMapZoom) {
@@ -345,10 +350,10 @@ function getExtendedMapControl() {
         query.body.aggs = _getAggsObject(mainSearchDetails.geoPointMapExtentFilter(), spatialPath, currentZoom);
         const aggResp = await esClient.search(query);
         const aggChartData = mainSearchDetails.respProcessor.process(aggResp);
-        processedAggResp = utils.processAggRespForMarkerClustering(aggChartData, mainSearchDetails.geoFilter, limit);
+        processedAggResp = utils.processAggRespForMarkerClustering(aggChartData, mainSearchDetails.geoFilter, limit, 'geometry');
 
         if (processedAggResp.aggFeatures) {
-          query = _getQueryTemplate(spatialPath, filter, 100);
+          query = _getQueryTemplate(spatialPath, filter);
           resp = await esClient.search(query);
         }
       } else {
@@ -381,7 +386,7 @@ function getExtendedMapControl() {
 
     //assigning configurations to layer options
     Object.keys(config).forEach(configType => {
-      if (Array.isArray(config[configType])) {
+      if (Array.isArray(config[configType]) && configType !== 'popupFields') {
         //checking and assigning config from first hit for field level config types
         options[configType] = get(hits[0]._source, [config[configType]].toString());
       } else {
@@ -392,7 +397,7 @@ function getExtendedMapControl() {
     let geo;
     if (hits[0] && hits[0]._source && hits[0]._source.geometrytype) {
       geo = {
-        type: hits[0]._source.geometrytype,
+        type: hits[0]._source.geometrytype.toLowerCase(),
         field: 'geometry'
       };
     } else {

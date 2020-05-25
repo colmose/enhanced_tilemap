@@ -15,16 +15,11 @@ export default class EsLayer {
     let layer = null;
     const self = this;
 
-    //handling too many documents warnings
     options.$legend = options.$element.find('a.leaflet-control-layers-toggle').get(0);
     options.$legend.innerHTML = '';
     layerControl.removeClass('leaflet-control-layers-warning');
-    if (options.warning && options.warning.limit) {
-      layerControl.addClass('leaflet-control-layers-warning');
-      options.$legend.innerHTML = `<i class="fa fa-exclamation-triangle text-color-warning doc-viewer-underscore"></i>`;
-    }
 
-    if (hits.length >= 1 || aggs.length >= 1) {
+    if ((aggs && aggs.length >= 1) || (hits.length >= 1)) {
       //using layer level config
       const layerControlIcon = options.icon;
       const layerControlColor = options.color;
@@ -123,6 +118,13 @@ export default class EsLayer {
           }
         );
         self.bindPopup(layer, options);
+        if (options.warning && options.warning.limit) {
+          //handling too many documents warnings
+          layerControl.addClass('leaflet-control-layers-warning');
+          options.$legend.innerHTML = `<i class="fa fa-exclamation-triangle text-color-warning doc-viewer-underscore"></i>`;
+          layer.warning = `There are undisplayed POIs for this overlay due
+        to having reached the limit currently set to ${options.warning.limit}`;
+        }
         layer.icon = `<i class="far fa-stop" style="color:${layerControlColor};"></i>`;
         layer.type = type + '_shape';
         layer.destroy = () => layer.options.destroy();
@@ -133,10 +135,7 @@ export default class EsLayer {
       layer.id = options.id;
       layer.label = options.displayName;
 
-      if (options.warning && options.warning.limit) {
-        layer.warning = `There are undisplayed POIs for this overlay due
-      to having reached the limit currently set to ${options.warning.limit}`;
-      }
+
       layer.filterPopupContent = options.filterPopupContent;
       layer.close = options.close;
 
@@ -195,6 +194,7 @@ export default class EsLayer {
   bindPopup = function (layer, options) {
     const self = this;
     const KEEP_POPUP_OPEN_CLASS_NAMES = ['leaflet-popup', 'tooltip'];
+    let clusterPolygon;
 
     self._popupMouseOut = function (e) {
       // get the element that the mouse hovered onto
@@ -210,18 +210,44 @@ export default class EsLayer {
 
     layer.on({
       mouseover: function (e) {
-        self._showTooltip(e.layer.content, e.latlng, options.leafletMap);
+        if (e.layer.content) {
+          // for points, polylines or polygons
+          self._showTooltip(e.layer.content, e.latlng, options.leafletMap);
+        } else if (e.layer.geohashRectangle) {
+          //for marker clusters
+          clusterPolygon = self._createClusterGeohashPolygon(e.layer.geohashRectangle, options.color).addTo(options.leafletMap);
+        }
       },
 
       mouseout: function (e) {
-        const target = e.originalEvent.toElement || e.originalEvent.relatedTarget;
-        // check to see if the element is a popup
-        if (utils.getParent(target, KEEP_POPUP_OPEN_CLASS_NAMES)) {
-          L.DomEvent.on(options.leafletMap._popup._container, 'mouseout', self._popupMouseOut, self);
-          return true;
+        if (e.layer.geohashRectangle && clusterPolygon) {
+          clusterPolygon.remove(options.leafletMap);
+        } else {
+          const target = e.originalEvent.toElement || e.originalEvent.relatedTarget;
+          // check to see if the element is a popup
+          if (utils.getParent(target, KEEP_POPUP_OPEN_CLASS_NAMES)) {
+            L.DomEvent.on(options.leafletMap._popup._container, 'mouseout', self._popupMouseOut, self);
+            return true;
+          }
+          options.leafletMap.closePopup();
         }
-        options.leafletMap.closePopup();
       }
+    });
+  };
+
+  _createClusterGeohashPolygon = function (rectangle, color) {
+    const corners = [
+      [rectangle[3][0], rectangle[3][1]],
+      [rectangle[1][0], rectangle[1][1]]
+    ];
+
+    return L.rectangle(corners, {
+      stroke: true,
+      color,
+      opacity: 0.7,
+      dashArray: 4,
+      fill: true,
+      fillOpacity: 0.2
     });
   };
 
@@ -249,7 +275,7 @@ export default class EsLayer {
     polygon.on('click', polygon._click);
   };
 
-  _createMarker = function (hit, geoField, isIndividualPoint, options) {
+  _createMarker = function (hit, geoField, options) {
     let hitCoords;
     if (_.has(hit, '_source.geometry.coordinates') && _.has(hit, '_source.geometry.type')) {
       hitCoords = hit._source.geometry.coordinates;
@@ -264,7 +290,7 @@ export default class EsLayer {
         pane: 'overlayPane'
       });
 
-    if (options.popupFields.length && isIndividualPoint) {
+    if (options.popupFields.length) {
       feature.content = this._popupContent(hit, options.popupFields);
     }
 
@@ -273,7 +299,7 @@ export default class EsLayer {
 
   _popupContent = function (hit, popupFields) {
     let dlContent = '';
-    if(_.isArray(popupFields)) {
+    if (_.isArray(popupFields)) {
       popupFields.forEach(function (field) {
         let popupFieldValue;
         if (hit._source.properties) {
@@ -297,12 +323,12 @@ export default class EsLayer {
         this.assignFeatureLevelConfigurations(feature, geo.type, options);
       }
 
-      markerList.push(this._createMarker(feature, geo.field, true, options));
+      markerList.push(this._createMarker(feature, geo.field, options));
     });
     return markerList;
   }
 
-  _makeClusterPoints = (features, geo, options) => {
+  _makeClusterPoints = (features) => {
     const markerList = [];
     let maxAggDocCount = 0;
     let centerLat;
@@ -321,7 +347,7 @@ export default class EsLayer {
         icon: markerClusteringIcon(markerCount, maxAggDocCount)
       });
 
-      this._createMarker(feature, geo.field, false, options);
+      marker.geohashRectangle = feature.properties.rectangle;
       markerList.push(marker);
     });
     return markerList;
