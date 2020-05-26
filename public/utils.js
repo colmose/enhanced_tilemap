@@ -224,6 +224,51 @@ define(function (require) {
 
       return new L.Point(widthOffset, heightOffset);
     },
+    offsetMarkerCluster: function (leafletMap, point, rectangle, count) {
+      //function to offset the center of the geoHash so that the marker cluster will fit in geohash
+      const clusterCentroidInPixels = leafletMap.latLngToContainerPoint([point[1], point[0]]);
+      const pixels = {
+        bottomLeft: leafletMap.latLngToContainerPoint(rectangle[0]),
+        topRight: leafletMap.latLngToContainerPoint(rectangle[2]),
+      };
+
+      const minDistToRight = {
+        1: 39,
+        2: 46,
+        3: 52,
+        4: 54,
+        5: 62,
+        6: 78,
+        7: 82,
+        8: 90
+      };
+
+      const minDistanceFromLeft = 5;
+      const minDistanceFromBottom = 30;
+      const minDistanceToRight = minDistToRight[count.toString().length];
+      const minDistanceFromTop = 5;
+
+      //x axis offset
+      const distToLeftEdge = clusterCentroidInPixels.x - pixels.bottomLeft.x;
+      const distToRightEdge = pixels.topRight.x - clusterCentroidInPixels.x;
+      if (distToLeftEdge < minDistanceFromLeft) {
+        clusterCentroidInPixels.x += (minDistanceFromLeft - distToLeftEdge);
+      } else if (distToRightEdge < minDistanceToRight) {
+        clusterCentroidInPixels.x -= (minDistanceToRight - distToRightEdge);
+      }
+
+      //y axis offset
+      const distToTopEdge = clusterCentroidInPixels.y - pixels.topRight.y;
+      const distToBottomEdge = pixels.bottomLeft.y - clusterCentroidInPixels.y;
+      if (distToTopEdge < minDistanceFromTop) {
+        clusterCentroidInPixels.y += (minDistanceFromTop - distToTopEdge);
+      } else if (distToBottomEdge <= minDistanceFromBottom) {
+        clusterCentroidInPixels.y -= (minDistanceFromBottom - distToBottomEdge);
+      }
+
+      const offsetLatLng = leafletMap.containerPointToLatLng(clusterCentroidInPixels);
+      return offsetLatLng;
+    },
     getMarkerClusteringPrecision: function (currentZoom) {
       const clusteringPrecisionBasedOnZoom = {
         0: 1,
@@ -232,7 +277,7 @@ define(function (require) {
         3: 2,
         4: 2,
         5: 2,
-        6: 2,
+        6: 3,
         7: 3,
         8: 3,
         9: 4,

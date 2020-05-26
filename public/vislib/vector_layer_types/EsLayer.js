@@ -4,7 +4,7 @@ import { toLatLng } from 'plugins/enhanced_tilemap/vislib/geo_point';
 import utils from 'plugins/enhanced_tilemap/utils';
 import { markerClusteringIcon } from 'plugins/enhanced_tilemap/vislib/icons/markerClusteringIcon';
 import { searchIcon } from 'plugins/enhanced_tilemap/vislib/icons/searchIcon';
-
+import { markerIcon } from 'plugins/enhanced_tilemap/vislib/icons/markerIcon';
 export default class EsLayer {
   constructor() {
   }
@@ -28,7 +28,7 @@ export default class EsLayer {
         options.icon = _.get(options, 'icon', 'fas fa-map-marker-alt');
 
         const featuresForLayer = self._makeIndividualPoints(hits, geo, type, options)
-          .concat(self._makeClusterPoints(aggs, geo, options));
+          .concat(self._makeClusterPoints(aggs, layerControlIcon, layerControlColor, options));
         layer = new L.FeatureGroup(featuresForLayer);
         layer.type = type + '_point';
         layer.options = { pane: 'overlayPane' };
@@ -195,6 +195,7 @@ export default class EsLayer {
     const self = this;
     const KEEP_POPUP_OPEN_CLASS_NAMES = ['leaflet-popup', 'tooltip'];
     let clusterPolygon;
+    let tempclusterpoint;
 
     self._popupMouseOut = function (e) {
       // get the element that the mouse hovered onto
@@ -216,12 +217,17 @@ export default class EsLayer {
         } else if (e.layer.geohashRectangle) {
           //for marker clusters
           clusterPolygon = self._createClusterGeohashPolygon(e.layer.geohashRectangle, options.color).addTo(options.leafletMap);
+          tempclusterpoint = L.marker(e.latlng,
+            {
+              icon: markerIcon(options.color, options.size)
+            }).addTo(options.leafletMap);
         }
       },
 
       mouseout: function (e) {
         if (e.layer.geohashRectangle && clusterPolygon) {
           clusterPolygon.remove(options.leafletMap);
+          tempclusterpoint.remove(options.leafletMap);
         } else {
           const target = e.originalEvent.toElement || e.originalEvent.relatedTarget;
           // check to see if the element is a popup
@@ -328,11 +334,9 @@ export default class EsLayer {
     return markerList;
   }
 
-  _makeClusterPoints = (features) => {
+  _makeClusterPoints = (features, icon, color, options) => {
     const markerList = [];
     let maxAggDocCount = 0;
-    let centerLat;
-    let centerLon;
 
     features.forEach(feature => {
       if (feature.properties.value > maxAggDocCount) maxAggDocCount = feature.properties.value;
@@ -340,11 +344,18 @@ export default class EsLayer {
 
     features.forEach((feature) => {
       const markerCount = _.get(feature, 'properties.value');
-      centerLat = feature.geometry.coordinates[1];
-      centerLon = feature.geometry.coordinates[0];
+      const offsetCenter = utils.offsetMarkerCluster(
+        options.leafletMap,
+        // 1 = lat
+        // 0 = lon
+        feature.geometry.coordinates,
+        feature.properties.rectangle,
+        markerCount
+      );
 
-      const marker = L.marker([centerLat, centerLon], {
-        icon: markerClusteringIcon(markerCount, maxAggDocCount)
+      const marker = L.marker(offsetCenter, {
+      // const marker = L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], {
+        icon: markerClusteringIcon(markerCount, maxAggDocCount, icon, color)
       });
 
       marker.geohashRectangle = feature.properties.rectangle;
