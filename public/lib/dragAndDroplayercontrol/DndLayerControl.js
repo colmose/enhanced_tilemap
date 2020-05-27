@@ -352,8 +352,8 @@ function getExtendedMapControl() {
         const aggChartData = mainSearchDetails.respProcessor.process(aggResp);
         processedAggResp = utils.processAggRespForMarkerClustering(aggChartData, mainSearchDetails.geoFilter, limit, 'geometry');
 
-        if (processedAggResp.aggFeatures) {
-          query = _getQueryTemplate(spatialPath, filter);
+        if (processedAggResp.aggFeatures && processedAggResp.docFilters.bool.should.length >= 1) {
+          query = _getQueryTemplate(spatialPath, processedAggResp.docFilters);
           resp = await esClient.search(query);
         }
       } else {

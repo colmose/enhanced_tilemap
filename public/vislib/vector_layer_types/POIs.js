@@ -171,12 +171,6 @@ define(function (require) {
       };
 
       const processLayer = async () => {
-        let docResp = {
-          hits: {
-            hits: []
-          }
-        };
-
         options.popupFields = this.popupFields;
         //creating icon and title from search for map and layerControl
         options.displayName = options.displayName || savedSearch.title;
@@ -199,29 +193,30 @@ define(function (require) {
 
         const processedAggResp = utils.processAggRespForMarkerClustering(aggChartData, geoFilter, this.limit, geo.field);
 
-        if (processedAggResp.aggFeatures) {
+        let hits = [];
+        if (processedAggResp.aggFeatures && processedAggResp.docFilters.bool.should.length >= 1) {
           const docSearchSource = await createSearchSource(new SearchSource(), savedSearch, geo, processedAggResp.docFilters);
-          docResp = await docSearchSource.fetch();
+          const docResp = await docSearchSource.fetch();
+          hits = docResp.hits.hits;
+        }
+        if (this.draggedState) {
+          //For drag and drop overlays
+          if (this.isInitialDragAndDrop) {
 
-          if (this.draggedState) {
-            //For drag and drop overlays
+            //Storing this information on the params object for use
+            //in ES Response watcher
             if (this.isInitialDragAndDrop) {
-
-              //Storing this information on the params object for use
-              //in ES Response watcher
-              if (this.isInitialDragAndDrop) {
-                this.params.filterPopupContent = options.filterPopupContent;
-                this.params.icon = options.icon;
-                this.params.savedDashboardTitleInitial = this.params.savedDashboardTitle;
-                this.params.draggedStateInitial = this.params.draggedState;
-                this.params.geoField = geo.field;
-                this.params.geoType = geo.type;
-                this.params.displayName = options.displayName;
-              }
+              this.params.filterPopupContent = options.filterPopupContent;
+              this.params.icon = options.icon;
+              this.params.savedDashboardTitleInitial = this.params.savedDashboardTitle;
+              this.params.draggedStateInitial = this.params.draggedState;
+              this.params.geoField = geo.field;
+              this.params.geoType = geo.type;
+              this.params.displayName = options.displayName;
             }
           }
         }
-        return callback(createEsLayer.createLayer(docResp.hits.hits, processedAggResp.aggFeatures, geo, 'poi', options));
+        return callback(createEsLayer.createLayer(hits, processedAggResp.aggFeatures, geo, 'poi', options));
       };
 
       const geoFieldSelectModal = () => {

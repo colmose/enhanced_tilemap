@@ -18,13 +18,7 @@ export const markerClusteringIcon = function (thisClusterCount, maxAggDocCount, 
 
   function getOuterStyle() {
     return getBaseStyle() +
-      'display: flex;' +
-      'padding: 2px;';
-    // +
-    // 'border: solid;' +
-    // 'border-width: 1px;' +
-    // 'border-radius: 5px; ' +
-    // `border-color: ${color}`;
+      'display: flex;';
   }
 
   function getCountStyle() {
@@ -32,7 +26,7 @@ export const markerClusteringIcon = function (thisClusterCount, maxAggDocCount, 
       'border-radius: 10px; ' +
       'border: solid;' +
       'border-width: 0.5px; ' +
-      'border-color: #a3a3a3; ' +
+      `border-color: ${color}; ` +
       'opacity: 1; ' +
       `background-color: ${backgroundColor}; ` +
       'padding: 2px;';

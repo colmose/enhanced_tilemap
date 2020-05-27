@@ -224,14 +224,8 @@ define(function (require) {
 
       return new L.Point(widthOffset, heightOffset);
     },
-    offsetMarkerCluster: function (leafletMap, point, rectangle, count) {
+    offsetMarkerCluster: function (pixels, clusterCentroidInPixels, count) {
       //function to offset the center of the geoHash so that the marker cluster will fit in geohash
-      const clusterCentroidInPixels = leafletMap.latLngToContainerPoint([point[1], point[0]]);
-      const pixels = {
-        bottomLeft: leafletMap.latLngToContainerPoint(rectangle[0]),
-        topRight: leafletMap.latLngToContainerPoint(rectangle[2]),
-      };
-
       const minDistToRight = {
         1: 39,
         2: 46,
@@ -240,7 +234,8 @@ define(function (require) {
         5: 62,
         6: 78,
         7: 82,
-        8: 90
+        8: 90,
+        9: 97
       };
 
       const minDistanceFromLeft = 5;
@@ -266,8 +261,7 @@ define(function (require) {
         clusterCentroidInPixels.y -= (minDistanceFromBottom - distToBottomEdge);
       }
 
-      const offsetLatLng = leafletMap.containerPointToLatLng(clusterCentroidInPixels);
-      return offsetLatLng;
+      return clusterCentroidInPixels;
     },
     getMarkerClusteringPrecision: function (currentZoom) {
       const clusteringPrecisionBasedOnZoom = {
@@ -307,9 +301,10 @@ define(function (require) {
       let totalNumberOfDocsToRetrieve = 0;
       if (_.has(aggChartData, 'geoJson.features')) {
         aggFeatures = aggChartData.geoJson.features;
+        totalNumberOfDocsToRetrieve = aggFeatures.length;
         for (let i = aggFeatures.length - 1; i >= 0; i--) {
           const documentsInCurrentFeature = aggFeatures[i].properties.value;
-          if ((totalNumberOfDocsToRetrieve + documentsInCurrentFeature) < limit) {
+          if ((totalNumberOfDocsToRetrieve + documentsInCurrentFeature) <= limit) {
 
             const rectangle = aggFeatures[i].properties.rectangle;
             const topLeft = { lat: rectangle[3][0], lon: rectangle[3][1] };
@@ -317,7 +312,7 @@ define(function (require) {
 
             const geoBoundingBoxFilter = geoFilter.rectFilter(geoField, 'geo_point', topLeft, bottomRight);
             docFilters.bool.should.push(geoBoundingBoxFilter);
-            totalNumberOfDocsToRetrieve += aggFeatures[i].properties.value;
+            totalNumberOfDocsToRetrieve += documentsInCurrentFeature;
             aggFeatures.splice(i, 1);
           }
         }
