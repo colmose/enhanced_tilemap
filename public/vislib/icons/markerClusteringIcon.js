@@ -33,6 +33,7 @@ export const markerClusteringIcon = function (thisClusterCount, maxAggDocCount, 
   }
 
   return L.divIcon({
+    // className is required, otherwise we get a default white square appearing in top left of html div below
     className: '',
     html: `<div style="${getOuterStyle()}">` +
       `<i class="${faIcon}" style="color:${color};"></i>` +
