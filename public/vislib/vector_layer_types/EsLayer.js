@@ -155,7 +155,7 @@ export default class EsLayer {
       layer.id = options.id;
       layer.label = options.displayName;
 
-      if (geo.type === 'point') {
+      if (geo.type === 'point' || geo.type === 'geo_point') {
         layer.icon = `<i class="${options.icon}" style="color:${options.color};"></i>`;
       } else {
         layer.icon = `<i class="far fa-stop" style="color:${options.color};"></i>`;
@@ -340,8 +340,8 @@ export default class EsLayer {
     features.forEach((feature) => {
       const markerCount = _.get(feature, 'properties.value');
       const containerPixels = {
-        bottomLeft: options.leafletMap.latLngToContainerPoint(feature.properties.rectangle[0]),
-        topRight: options.leafletMap.latLngToContainerPoint(feature.properties.rectangle[2]),
+        topLeft: options.leafletMap.latLngToContainerPoint(feature.properties.rectangle[0]),
+        bottomRight: options.leafletMap.latLngToContainerPoint(feature.properties.rectangle[2]),
       };
       const clusterCentroidInPixels = options.leafletMap.latLngToContainerPoint(
         [feature.geometry.coordinates[1], feature.geometry.coordinates[0]]
@@ -351,7 +351,8 @@ export default class EsLayer {
       );
 
       const marker = L.marker(offsetCenter, {
-        icon: markerClusteringIcon(markerCount, maxAggDocCount, icon, color)
+        icon: markerClusteringIcon(markerCount, maxAggDocCount, icon, color),
+        pane: 'overlayPane'
       });
 
       marker.geohashRectangle = feature.properties.rectangle;

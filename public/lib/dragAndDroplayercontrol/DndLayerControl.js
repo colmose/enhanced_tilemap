@@ -180,7 +180,7 @@ function getExtendedMapControl() {
 
   function _updateEsRefLayerVisibility(id, enabled) {
     // when stored in layer control, elastic map reference indices path is the id
-    for (let i = 0; i < esRefLayersOnMap.length - 1; i++) {
+    for (let i = 0; i <= esRefLayersOnMap.length - 1; i++) {
       if (esRefLayersOnMap[i].id === id || esRefLayersOnMap[i].id.substring(3) === id) {
         esRefLayersOnMap[i].enabled = enabled;
         break;
@@ -252,7 +252,7 @@ function getExtendedMapControl() {
   }
 
   function _getAggsObject(mapExtentFilter, spatialPath, zoom) {
-    //temporary update of map extent filter
+
     mapExtentFilter = {
       geo_bounding_box: {
         geometry: {
@@ -359,7 +359,7 @@ function getExtendedMapControl() {
       } else {
         filter = mainSearchDetails.geoShapeMapExtentFilter();
         query = _getQueryTemplate(spatialPath, filter, limit);
-        query.index = '.map__polygon__*';
+        query.index = '.map__shape__*';
         resp = await esClient.search(query);
       }
     }
