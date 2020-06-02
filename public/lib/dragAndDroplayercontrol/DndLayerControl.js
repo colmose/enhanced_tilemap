@@ -303,24 +303,22 @@ function getExtendedMapControl() {
   }
 
   function _getQueryTemplate(spatialPath, filter, limit) {
+    filter.push({
+      term: {
+        'spatial_path.raw': spatialPath
+      }
+    });
+
     const queryTemplate = {
       index: '.map__*',
       body: {
         query: {
           bool: {
-            must: {
-              term: {
-                'spatial_path.raw': spatialPath
-              }
-            }
+            must: filter
           }
         }
       }
     };
-
-    if (filter) {
-      queryTemplate.body.query.bool.filter = filter;
-    }
 
     if (limit || limit === 0) {
       queryTemplate.body.size = limit;
@@ -336,6 +334,7 @@ function getExtendedMapControl() {
     const config = _getLayerLevelConfig(spatialPath, mainSearchDetails.storedLayerConfig);
     const visibleForCurrentMapZoom = _visibleForCurrentMapZoom(config);
     const limit = 250;
+    const filter = [];
 
     let noHitsForCurrentExtent = false;
     let query;
@@ -343,10 +342,9 @@ function getExtendedMapControl() {
       aggFeatures: []
     };
     let resp;
-    let filter;
     if (visibleForCurrentMapZoom) {
       if (geometryTypeOfSpatialPaths[spatialPath] === 'point') {
-        query = _getQueryTemplate(spatialPath, null, 0);
+        query = _getQueryTemplate(spatialPath, [], 0);
         query.index = '.map__point__*';
         query.body.query = { match_all: {} };
         query.body.aggs = _getAggsObject(mainSearchDetails.geoPointMapExtentFilter(), spatialPath, currentZoom);
@@ -355,20 +353,14 @@ function getExtendedMapControl() {
         processedAggResp = utils.processAggRespForMarkerClustering(aggChartData, mainSearchDetails.geoFilter, limit, 'geometry');
 
         if (processedAggResp.aggFeatures && processedAggResp.docFilters.bool.should.length >= 1) {
-          query = _getQueryTemplate(spatialPath, processedAggResp.docFilters, limit);
+          filter.push(processedAggResp.docFilters);
+          filter.push(_createBoundingBoxFilter(mainSearchDetails.geoPointMapExtentFilter()));
+          query = _getQueryTemplate(spatialPath, filter, limit);
           query.index = '.map__point__*';
-
-          // need to add map canvas filter to query clause as the
-          // must in the filter clause overrides the should in the filter clause. This would mean that all
-          // documents in the map canvas are queried for, instead of just the geohashes
-          query.body.query.bool.must = [
-            query.body.query.bool.must,
-            _createBoundingBoxFilter(mainSearchDetails.geoPointMapExtentFilter())
-          ];
           resp = await esClient.search(query);
         }
       } else {
-        filter = mainSearchDetails.geoShapeMapExtentFilter();
+        filter.push(mainSearchDetails.geoShapeMapExtentFilter());
         query = _getQueryTemplate(spatialPath, filter, limit);
         query.index = '.map__shape__*';
         resp = await esClient.search(query);
@@ -378,7 +370,7 @@ function getExtendedMapControl() {
     if (!resp) {
       noHitsForCurrentExtent = true;
       //getting first object if not visible
-      query = _getQueryTemplate(spatialPath, null, 1);
+      query = _getQueryTemplate(spatialPath, [], 1);
       query.body.query.bool.should = _makeExistsForConfigFieldTypes(config);
       resp = await esClient.search(query);
     }
