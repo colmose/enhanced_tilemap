@@ -250,17 +250,19 @@ function getExtendedMapControl() {
     });
     return existsQueryArray;
   }
-
-  function _getAggsObject(mapExtentFilter, spatialPath, zoom) {
-
-    mapExtentFilter = {
+  function _createBoundingBoxFilter(filter) {
+    return {
       geo_bounding_box: {
         geometry: {
-          top_left: mapExtentFilter.geo_bounding_box.top_left,
-          bottom_right: mapExtentFilter.geo_bounding_box.bottom_right
+          top_left: filter.geo_bounding_box.top_left,
+          bottom_right: filter.geo_bounding_box.bottom_right
         }
       }
     };
+  }
+
+  function _getAggsObject(mapExtentFilter, spatialPath, zoom) {
+    mapExtentFilter = _createBoundingBoxFilter(mapExtentFilter);
 
     return {
       2: {
@@ -320,7 +322,7 @@ function getExtendedMapControl() {
       queryTemplate.body.query.bool.filter = filter;
     }
 
-    if (limit) {
+    if (limit || limit === 0) {
       queryTemplate.body.size = limit;
     }
 
@@ -353,7 +355,16 @@ function getExtendedMapControl() {
         processedAggResp = utils.processAggRespForMarkerClustering(aggChartData, mainSearchDetails.geoFilter, limit, 'geometry');
 
         if (processedAggResp.aggFeatures && processedAggResp.docFilters.bool.should.length >= 1) {
-          query = _getQueryTemplate(spatialPath, processedAggResp.docFilters);
+          query = _getQueryTemplate(spatialPath, processedAggResp.docFilters, limit);
+          query.index = '.map__point__*';
+
+          // need to add map canvas filter to query clause as the
+          // must in the filter clause overrides the should in the filter clause. This would mean that all
+          // documents in the map canvas are queried for, instead of just the geohashes
+          query.body.query.bool.must = [
+            query.body.query.bool.must,
+            _createBoundingBoxFilter(mainSearchDetails.geoPointMapExtentFilter())
+          ];
           resp = await esClient.search(query);
         }
       } else {
