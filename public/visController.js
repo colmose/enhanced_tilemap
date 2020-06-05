@@ -278,8 +278,6 @@ define(function (require) {
       const poi = new POIsProvider(layerParams);
       const displayName = layerParams.displayName || layerParams.savedSearchLabel;
       const options = {
-        vis: $scope.vis,
-        dsl: $scope.vis.aggs.toDsl(),
         id: layerParams.id,
         displayName,
         color: layerParams.color,
@@ -291,8 +289,7 @@ define(function (require) {
         geoFieldName: getGeoField().fieldname,
         searchSource: $scope.searchSource,
         $element,
-        leafletMap: map.leafletMap,
-        zoom: map.leafletMap.getZoom()
+        leafletMap: map.leafletMap
       };
 
       poi.getLayer(options, function (layer) {
@@ -609,10 +606,7 @@ define(function (require) {
         getIndexPatternId,
         getGeoField,
         getSirenMeta,
-        geoShapeMapExtentFilter: getGeoShapeBox,
-        geoPointMapExtentFilter: getGeoBoundingBox,
-        respProcessor: new RespProcessor($scope.vis, buildChartData, utils),
-        geoFilter,
+        mapExtentFilter: getGeoShapeBox,
         storedLayerConfig: getStoredLayerConfig(),
         uiState: $scope.vis.getUiState()
       };
