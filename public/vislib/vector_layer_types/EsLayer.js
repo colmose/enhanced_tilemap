@@ -138,7 +138,7 @@ export default class EsLayer {
           }
         );
         self.bindPopup(layer, options);
-        if (geo.type.includes('line')) {
+        if (geo.type === 'linestring' || geo.type === 'multilinestring) {
           layer.icon = `<i class="far fa-horizontal-rule" style="color:${layerControlColor};"></i>`;
         } else {
           layer.icon = `<i class="far fa-draw-square" style="color:${layerControlColor};"></i>`;
