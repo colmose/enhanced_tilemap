@@ -177,7 +177,7 @@ export default class EsLayer {
 
       if (geo.type === 'point') {
         layer.icon = `<i class="${options.icon}" style="color:${options.color};"></i>`;
-      } else if (geo.type.includes('line')) {
+      } else if (geo.type === 'line') {
         layer.icon = `<i class="far fa-horizontal-rule" style="color:${options.color};"></i>`;
       } else {
         layer.icon = `<i class="far fa-draw-square" style="color:${options.color};"></i>`;

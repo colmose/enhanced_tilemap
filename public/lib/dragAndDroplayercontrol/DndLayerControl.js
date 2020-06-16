@@ -490,7 +490,7 @@ function getExtendedMapControl() {
     // a check if there are any stored layers
     if (resp) {
       const aggs = resp.aggregations[2].buckets;
-      geometryTypeOfSpatialPaths = _getGeometryTypeOfSpatialPaths(aggs);
+      geometryTypeOfSpatialPaths = await _getGeometryTypeOfSpatialPaths(aggs);
       const savedStoredLayers = [];
 
       aggs.forEach(agg => {
