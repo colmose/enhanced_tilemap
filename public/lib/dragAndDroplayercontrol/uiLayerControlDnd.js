@@ -5,7 +5,15 @@ import EllipsisWithTooltip from 'react-ellipsis-with-tooltip';
 
 import {
   EuiCheckbox,
-  EuiIconTip
+  EuiIconTip,
+  EuiDragDropContext,
+  EuiDraggable,
+  EuiDroppable,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiIcon,
+  EuiToolTip,
+  EuiButtonEmpty
 } from '@elastic/eui';
 
 import {
@@ -109,107 +117,86 @@ export class LayerControlDnd extends React.Component {
   render() {
     return (
       <React.Fragment>
-        <DragDropContext onDragEnd={this.onDragEnd}>
-          <Droppable droppableId="DROPPABLE_AREA_BARE">
-
-            {(provided, snapshot) => (
-              <div
-                {...provided.droppableProps}
-                ref={provided.innerRef}
-                className={snapshot.isDraggingOver ? 'drag-in-progress' : 'drag-not-in-progress'}
-                style={getListStyle(snapshot.isDraggingOver)}
-              >
-                {this.state.dndCurrentListOrder.map((layer, index) => (
-
-                  <Draggable key={layer.id} draggableId={layer.id} index={index}>
-                    {(provided, snapshot) => (
-                      <div className='layer-control-row'
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        style={getItemStyle(
-                          snapshot.isDragging,
-                          provided.draggableProps.style,
-                        )}
-                      >
-                        <span {...provided.dragHandleProps} className="panel-drag-handler">
-                          <span className={'far fa-grip-lines'}
-                          />
-                        </span>
-
-                        <span className="panel-checkbox">
-                          <EuiCheckbox
-                            data-test-subj={layer.id}
-                            id={layer.id}
-                            checked={layer.enabled}
-                            onChange={e => this.changeVisibility(e, layer, index)}
-
-                          />
-                        </span>
-
-                        {layer.icon && <div
-                          className="iconDiv"
-                          dangerouslySetInnerHTML={{
-                            __html: layer.icon
-                          }}></div>
-                        }
-
-                        {/* <span className="panel-label"> */}
-                        <EllipsisWithTooltip className="label" placement="left"
-                        >
-                          {layer.label}
-                        </EllipsisWithTooltip>
-                        {/* </span> */}
-
-                        {layer.tooManyDocsInfo && <div
-                          dangerouslySetInnerHTML={{
-                            __html: layer.tooManyDocsInfo
-                          }}></div>
-                        }
-
-                        {layer.filterPopupContent && <EuiIconTip
-                          size="m"
-                          type="filter"
-                          color="#006BB4"
-                          position="bottom"
-                          content={<div
-                            dangerouslySetInnerHTML={{
-                              __html: layer.filterPopupContent
-                            }}>
-                          </div>}
-                        >
-                        </EuiIconTip>
-                        }
-
-                        {layer.warning && layer.warning && <EuiIconTip
-                          size="m"
-                          type="alert"
-                          color="warning"
-                          position="bottom"
-                          content={<div
-                            dangerouslySetInnerHTML={{
-                              __html: layer.warning
-                            }}></div>}
-                        >
-                        </EuiIconTip>
-                        }
-
-                        {layer.close && <button
-                          className="btn panel-remove"
-                          onClick={() => this.removeListItem(index, layer.id)}
-                        >
-                          <i className="far fa-trash" />
-                        </button>
-                        }
-                        {/* </span> */}
+        <EuiDragDropContext onDragEnd={this.onDragEnd}>
+          <EuiDroppable droppableId="DROPPABLE_AREA_BARE" withPanel>
+            {this.state.dndCurrentListOrder.map((layer, index) =>{
+              <EuiDraggable draggableId={layer.id} index={index} key={layer.id}>
+                {provided => (
+                  <EuiFlexGroup gutterSize="xs" alignItems="center">
+                    <EuiFlexItem grow={false}>
+                      <div {...provided.draggableProps}>
+                        <EuiIcon type="grab" />
                       </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={false}>
+                      <EuiCheckbox
+                        data-test-subj={layer.id}
+                        id={layer.id}
+                        checked={layer.enabled}
+                        onChange={e => this.changeVisibility(e, layer, index)}/>
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={false}>
+                      {layer.icon && <div
+                        className="iconDiv"
+                        dangerouslySetInnerHTML={{
+                          __html: layer.icon
+                        }}></div>
+                      }
+                    </EuiFlexItem>
+                    <EuiFlexItem>
+                      <EuiToolTip position="left" content={layer.label}>
+                        <p>{layer.label}</p>
+                      </EuiToolTip>
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={false}>
+                      {layer.tooManyDocsInfo && <div
+                        dangerouslySetInnerHTML={{
+                          __html: layer.tooManyDocsInfo
+                        }}></div>
+                      }
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={false}>
+                      {layer.filterPopupContent && <EuiIconTip
+                        size="m"
+                        type="filter"
+                        color="#006BB4"
+                        position="bottom"
+                        content={<div
+                          dangerouslySetInnerHTML={{
+                            __html: layer.filterPopupContent
+                          }}>
+                        </div>}
+                      />
+                      }
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={false}>
+                      {layer.warning && layer.warning && <EuiIconTip
+                        size="m"
+                        type="alert"
+                        color="warning"
+                        position="bottom"
+                        content={<div
+                          dangerouslySetInnerHTML={{
+                            __html: layer.warning
+                          }}></div>}
+                      />
+                      }
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={false}>
+                      {layer.close && <EuiButtonEmpty
+                        onClick={() => this.removeListItem(index, layer.id)}
+                        iconType="trash"
+                        size="s"
+                        color="danger"
+                      />
+                      }
+                    </EuiFlexItem>
+                  </EuiFlexGroup>
+                )}
+              </EuiDraggable>;
+            })}
+          </EuiDroppable>
+        </EuiDragDropContext>
       </React.Fragment>
     );
   }
