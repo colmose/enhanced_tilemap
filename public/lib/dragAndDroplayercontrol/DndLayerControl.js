@@ -432,8 +432,10 @@ function getExtendedMapControl() {
       if (spatialPathDoc.hits.hits.length === 1) {
         const spaitalPathSource = spatialPathDoc.hits.hits[0]._source;
 
+        const spcGeometryType = get(spaitalPathSource, 'geometrytype');
+
         let geometryType = 'point';
-        if (spaitalPathSource.geometry.type.includes('Polygon')) {
+        if (spcGeometryType === 'Polygon' || spcGeometryType === 'MultiPolygon') {
           geometryType = 'polygon';
         }
 
