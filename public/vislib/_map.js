@@ -473,6 +473,7 @@ define(function (require) {
 
       mapOptions.center = this._mapCenter;
       mapOptions.zoom = this._mapZoom;
+      mapOptions.worldCopyJump = true;
 
       this.leafletMap = L.map(this._container, mapOptions);
 

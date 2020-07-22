@@ -45,6 +45,7 @@ define(function (require) {
     const BoundsHelper = Private(require('plugins/enhanced_tilemap/vislib/DataBoundsHelper'));
     let collar = null;
     let chartData = null;
+    let _currentTimeFilter;
     let map = null;
     let tooltip = null;
     let tooltipFormatter = null;
@@ -78,6 +79,8 @@ define(function (require) {
       modifyToDsl();
       await setTooltipFormatter($scope.vis.params.tooltip, $scope.vis._siren);
       drawWfsOverlays();
+      _updateCurrentTimeFilter();
+      $scope.searchSource.vis.currentTimeFilter = _.cloneDeep(timefilter.get($scope.vis.indexPattern));
       await drawLayers();
 
       if (_shouldAutoFitMapBoundsToData(true)) {
@@ -165,8 +168,12 @@ define(function (require) {
       return !!field;
     }
 
-    function getPoiLayerParamsById(id) {
-      return _.find($scope.vis.params.overlays.savedSearches, { id });
+    function getPoiLayerParamsById(id, isDragAndDrop) {
+      if (isDragAndDrop) {
+        return _.find($scope.vis.params.overlays.dragAndDropPoiLayers, { id });
+      } else {
+        return _.find($scope.vis.params.overlays.savedSearches, { id });
+      }
     }
 
     async function addPOILayerFromDashboardWithModal(dashboardId) {
@@ -178,7 +185,7 @@ define(function (require) {
           const dashCounts = {};
           dashCounts[dashboardId] = dash.count;
 
-          const savedDashboard = await savedDashboards.get(dashboardId);
+          const savedDashboard = await getDashboard(dashboardId);
           const savedSearchId = savedDashboard.getMainSavedSearchId();
           const hasGeofield = await searchHasGeofield(savedSearchId);
 
@@ -199,10 +206,10 @@ define(function (require) {
             savedSearchId: savedSearchId
           };
           dragAndDropPoiLayer.savedDashboardTitle = savedDashboard.lastSavedTitle;
-          dragAndDropPoiLayer.layerGroup = '<b> Drag and Drop Overlays </b>';
           dragAndDropPoiLayer.isInitialDragAndDrop = true;
           if (!dragAndDropPoiLayer.id) dragAndDropPoiLayer.id = uuid.v1();
           dragAndDropPoiLayer.limit = 250;
+          dragAndDropPoiLayer.isDragAndDrop = true;
           // initialize on drop
           initPOILayer(dragAndDropPoiLayer);
 
@@ -292,6 +299,17 @@ define(function (require) {
       return filter;
     }
 
+    function _updateCurrentTimeFilter() {
+      _currentTimeFilter = timefilter.get($scope.vis.indexPattern);
+    }
+
+    function setCurrentTimeFilter(searchSource) {
+      if (!searchSource.vis) {
+        searchSource.vis = $scope.vis;
+      }
+      searchSource.vis.currentTimeFilter = _currentTimeFilter;
+    }
+
     function getMapBounds() {
       return utils.geoBoundingBoxBounds(map.mapBounds(), 1);
     }
@@ -312,6 +330,28 @@ define(function (require) {
 
     function saturateWMSTile(layer) {
       map.saturateTile($scope.vis.params.isDesaturated, layer);
+    }
+
+    async function getDashboard(dashboardId) {
+      return await savedDashboards.get(dashboardId);
+    }
+
+    function _getDefaultVectorLayerOptions(layerParams, displayName, id) {
+      return {
+        color: _.get(layerParams, 'color', '#008800'),
+        displayName,
+        id,
+        leafletMap: map.leafletMap,
+        mainVisGeoFieldName: getGeoField().fieldname,
+        mapExtentFilter: {
+          geo_bounding_box: getGeoBoundingBox(),
+          geoField: getGeoField()
+        },
+        searchSource: $scope.searchSource,
+        _siren: getSirenMeta(),
+        size: _.get(layerParams, 'markerSize', 'm'),
+        vis: $scope.vis,
+      };
     }
 
     function _drawPoiLayers(poiLayerArray, queryFilterChange) {
@@ -341,7 +381,8 @@ define(function (require) {
             _currentMapEnvironment.currentMapBounds,
             _currentMapEnvironment.currentZoom,
             _currentMapEnvironment.currentClusteringPrecision,
-            warning)) {
+            warning,
+            _currentTimeFilter)) {
           initPOILayer(layerParams);
         }
       });
@@ -356,23 +397,17 @@ define(function (require) {
         precision: getMarkerClusteringPrecision(_currentMapEnvironment.currentZoom),
         mapBounds: getMapBoundsWithCollar()
       };
+      layerParams.currentTimeFilter = _currentTimeFilter;
 
       const options = {
-        vis: $scope.vis,
-        dsl: $scope.vis.aggs.toDsl(),
-        id: layerParams.id,
-        displayName,
-        color: layerParams.color,
-        size: _.get(layerParams, 'markerSize', 'm'),
-        mapExtentFilter: {
-          geo_bounding_box: getGeoBoundingBox(),
-          geoField: getGeoField()
-        },
-        mainVisGeoFieldName: getGeoField().fieldname,
-        geoFieldName: layerParams.geoField,
-        searchSource: $scope.searchSource,
-        leafletMap: map.leafletMap,
-        zoom: map.leafletMap.getZoom()
+        ..._getDefaultVectorLayerOptions(layerParams, displayName, layerParams.id),
+        ...{
+          dsl: $scope.vis.aggs.toDsl(),
+          geoFieldName: layerParams.geoField,
+          setCurrentTimeFilter,
+          zoom: map.leafletMap.getZoom(),
+          isDragAndDrop: layerParams.isDragAndDrop
+        }
       };
 
       poi.getLayer(options, function (layer) {
@@ -380,38 +415,29 @@ define(function (require) {
       });
     }
 
-    function initVectorLayer(id, displayName, geoJsonCollection, options) {
+    function initVectorLayer(id, displayName, geoJsonCollection, layerParams) {
       spinControl.create();
       let popupFields = [];
-      if (_.get(options, 'popupFields') === '' || !_.get(options, 'popupFields')) {
+      if (_.get(layerParams, 'popupFields') === '' || !_.get(layerParams, 'popupFields')) {
         popupFields = [];
-      } else if (_.get(options, 'popupFields').indexOf(',') > -1) {
-        popupFields = _.get(options, 'popupFields').split(',');
+      } else if (_.get(layerParams, 'popupFields').indexOf(',') > -1) {
+        popupFields = _.get(layerParams, 'popupFields').split(',');
       } else {
-        popupFields = [_.get(options, 'popupFields', [])];
+        popupFields = [_.get(layerParams, 'popupFields', [])];
       }
 
-      const optionsWithDefaults = {
-        id,
-        displayName,
-        color: _.get(options, 'color', '#008800'),
-        size: _.get(options, 'size', 'm'),
-        popupFields,
-        layerGroup: _.get(options, 'layerGroup', '<b> Vector Overlays </b>'),
-        indexPattern: getIndexPatternId(),
-        geoFieldName: $scope.vis.aggs[1].params.field.name,
-        _siren: getSirenMeta(),
-        mapExtentFilter: {
-          geo_bounding_box: getGeoBoundingBox(),
-        },
-        type: _.get(options, 'type', 'noType'),
-        leafletMap: map.leafletMap
+      const options = {
+        ..._getDefaultVectorLayerOptions(layerParams, displayName, id),
+        ...{
+          indexPattern: getIndexPatternId(),
+          type: _.get(layerParams, 'type', 'noType'),
+          popupFields
+        }
       };
 
-      const layer = new Vector(geoJsonCollection).getLayer(optionsWithDefaults);
+      const layer = new Vector(geoJsonCollection).getLayer(options);
       layer.id = id;
-      map.addFeatureLayer(layer, optionsWithDefaults);
-
+      map.addFeatureLayer(layer, options);
     }
 
     /*
@@ -455,16 +481,13 @@ define(function (require) {
     });
 
     $scope.$watch('esResponse', function (resp) {
-      //handling a case where query is fired due to query or geofilter change
-      if (!$scope.flags.drawingAggs) {
-        if (_.has(resp, 'aggregations')) {
-          chartData = respProcessor.process(resp);
-          chartData.searchSource = $scope.searchSource;
-          if (_shouldAutoFitMapBoundsToData()) {
-            _doFitMapBoundsToData();
-          }
-          putAggregationLayerOnMap();
+      if (_.has(resp, 'aggregations')) {
+        chartData = respProcessor.process(resp);
+        chartData.searchSource = $scope.searchSource;
+        if (_shouldAutoFitMapBoundsToData()) {
+          _doFitMapBoundsToData();
         }
+        putAggregationLayerOnMap();
       }
     });
 
@@ -475,24 +498,31 @@ define(function (require) {
       }
     });
 
-    $scope.$listen(queryFilter, 'update', async function () {
+    //updating from query, time and auto-update
+    $scope.$listen(timefilter, 'update', () => drawLayersFromQueryOrTimeFilterUpdate());
+    $scope.$listen(queryFilter, 'update', () => drawLayersFromQueryOrTimeFilterUpdate());
+    $rootScope.$on('courier:searchRefresh', () => drawLayersFromQueryOrTimeFilterUpdate());
+
+    async function drawLayersFromQueryOrTimeFilterUpdate() {
       await setTooltipFormatter($scope.vis.params.tooltip, $scope.vis._siren);
-      //redraw these layers because they are specific to filters
+      _updateCurrentTimeFilter();
+      setCurrentTimeFilter($scope.searchSource);
+      //redraw these layers because they are specific to filters and time changes
       await drawAggregationLayer();
       _drawPoiLayers($scope.vis.params.overlays.savedSearches, true);
       _drawPoiLayers($scope.vis.params.overlays.dragAndDropPoiLayers, true);
       _drawGeoFilters();
-    });
+    }
 
     $scope.$on('$destroy', function () {
       binder.destroy();
       resizeChecker.destroy();
-      destroyKibiStateEvents();
+      _destroyKibiStateEvents();
       if (map) map.destroy();
       if (tooltip) tooltip.destroy();
     });
 
-    function destroyKibiStateEvents() {
+    function _destroyKibiStateEvents() {
       kibiState.off('drop_on_graph');
       kibiState.off('drag_on_graph');
     }
@@ -541,8 +571,7 @@ define(function (require) {
       _.each($scope.vis.params.overlays.wfsOverlays, wfsOverlay => {
         const options = {
           color: _.get(wfsOverlay, 'color', '#10aded'),
-          popupFields: _.get(wfsOverlay, 'popupFields', ''),
-          layerGroup: 'WFS Overlays'
+          popupFields: _.get(wfsOverlay, 'popupFields', '')
         };
 
         const url = wfsOverlay.url.substr(wfsOverlay.url.length - 5).toLowerCase() !== '/wfs?' ? wfsOverlay.url + '/wfs?' : wfsOverlay.url;
@@ -748,8 +777,6 @@ define(function (require) {
     }
 
     async function drawAggregationLayer(fromVisParams) {
-      $scope.flags.drawingAggs = true; // turns off the es watcher for the fetch in this function
-      let aggResp;
       let drawAggs;
       // checking that the agg has been configured,
       //e.g. a main spatial field has been set on new vis
@@ -757,12 +784,14 @@ define(function (require) {
         if (map._chartData && // if parameters haven't been assigned yet, fire the query
           (map.aggLayerParams && map.aggLayerParams.mapParams && map.aggLayerParams.mapParams.zoomLevel)) {
           const autoPrecision = _.get(map, '_chartData.geohashGridAgg.params.autoPrecision') || map.aggLayerParams.autoPrecision; //use previous as default
-          const layerOnMap = map._layerControl.getLayerById(map.aggLayerParams.id);
+          const layerOnMap = map._layerControl.getLayerById('Aggregation');
           if (!layerOnMap ||
             autoPrecision && utils.drawLayerCheck(map.aggLayerParams,
               _currentMapEnvironment.currentMapBounds,
               _currentMapEnvironment.currentZoom,
-              _currentMapEnvironment.currentAggregationPrecision)) {
+              _currentMapEnvironment.currentAggregationPrecision,
+              false,
+              _currentTimeFilter)) {
             drawAggs = true;
           } else if (!autoPrecision && (!utils.contains(map.aggLayerParams.mapParams.mapBounds, _currentMapEnvironment.currentMapBounds))) {
             drawAggs = true;
@@ -795,22 +824,21 @@ define(function (require) {
             zoomLevel: _currentMapEnvironment.currentZoom,
             precision: _currentMapEnvironment.currentAggregationPrecision
           };
-          aggResp = await $scope.searchSource.fetch();
+
+          map.aggLayerParams.currentTimeFilter = _currentTimeFilter;
+
+          await $scope.searchSource.fetch();
         }
 
-        if (_.has(aggResp, 'aggregations')) {
-          chartData = respProcessor.process(aggResp);
-          putAggregationLayerOnMap();
-        } else if (aggResp && aggResp.CourierFetchRequestStatus === 'aborted' && fromVisParams) {
-          // coming from vis.params when no changes are made,
-          // the search source fetch will be aborted
-          // so we redraw the aggs stored in memory as they are the same
-          putAggregationLayerOnMap();
-        } else if (isHeatMap()) {
-          map.fixMapTypeTooltips();
-        }
-
-        $scope.flags.drawingAggs = false;
+        // if (aggResp && aggResp.CourierFetchRequestStatus === 'aborted' && fromVisParams) {
+        //   // coming from vis.params when no changes are made,
+        //   // the search source fetch will be aborted
+        //   // so we redraw the aggs stored in memory as they are the same
+        //   // otherwise redrawing layer is handled by esResponse watcher
+        //   putAggregationLayerOnMap();
+        // } else if (isHeatMap()) {
+        //   map.fixMapTypeTooltips();
+        // }
       }
     }
     // ============================
@@ -888,7 +916,7 @@ define(function (require) {
       }
 
       if (e.layerType === 'poi_shape' || e.layerType === 'poi_point') {
-        const layerParams = getPoiLayerParamsById(e.id);
+        const layerParams = getPoiLayerParamsById(e.id, e.isDragAndDrop);
         layerParams.enabled = e.enabled;
         layerParams.type = e.layerType;
         const layerOnMap = map._layerControl.getLayerById(layerParams.id);
@@ -898,7 +926,8 @@ define(function (require) {
             _currentMapEnvironment.currentMapBounds,
             _currentMapEnvironment.currentZoom,
             _currentMapEnvironment.currentClusteringPrecision,
-            warning)) {
+            warning,
+            _currentTimeFilter)) {
           initPOILayer(layerParams);
         }
       } else if (e.layerType === 'agg') {
@@ -921,7 +950,7 @@ define(function (require) {
       }
 
       if (e.layerType === 'poi_shape' || e.layerType === 'poi_point') {
-        const layerParams = getPoiLayerParamsById(e.id);
+        const layerParams = getPoiLayerParamsById(e.id, e.isDragAndDrop);
         layerParams.enabled = false;
       } else if (map._markers && e.layerType === 'agg') {
         if (isHeatMap()) {

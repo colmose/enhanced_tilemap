@@ -203,8 +203,13 @@ define(function (require) {
 
       return new L.Point(widthOffset, heightOffset);
     },
-    drawLayerCheck: function (layerParams, mapBounds, zoom, precision, warning = false) {
-      if (!layerParams.mapParams || !layerParams.type || !mapBounds || !zoom || !precision) return true;
+    drawLayerCheck: function (layerParams, mapBounds, zoom, precision, warning = false, currentDashboardTimeFilter = false) {
+      if (!layerParams.mapParams ||
+        !layerParams.currentTimeFilter ||
+        !layerParams.type ||
+        !mapBounds ||
+        !zoom ||
+        !precision) return true;
 
       const zoomLevelCheck = (
         // no need to redraw shapes when zooming in, unless the limit was exceeded on the last time layer was created
@@ -222,7 +227,9 @@ define(function (require) {
       // current map canvas must contain the extent that the layer was rendered for
       const layerHasDataForCurrentBounds = !this.contains(layerParams.mapParams.mapBounds, mapBounds);
 
-      return layerParams.enabled && (zoomLevelCheck || layerHasDataForCurrentBounds);
+      const timeCheck = currentDashboardTimeFilter && !(layerParams.currentTimeFilter === currentDashboardTimeFilter);
+
+      return layerParams.enabled && (zoomLevelCheck || layerHasDataForCurrentBounds || timeCheck);
     }
   };
 });
