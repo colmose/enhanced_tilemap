@@ -504,6 +504,7 @@ define(function (require) {
     $rootScope.$on('courier:searchRefresh', () => drawLayersFromQueryOrTimeFilterUpdate());
 
     async function drawLayersFromQueryOrTimeFilterUpdate() {
+      if (!map.leafletMap) return;
       await setTooltipFormatter($scope.vis.params.tooltip, $scope.vis._siren);
       _updateCurrentTimeFilter();
       setCurrentTimeFilter($scope.searchSource);

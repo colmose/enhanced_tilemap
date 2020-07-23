@@ -203,9 +203,13 @@ define(function (require) {
 
       return new L.Point(widthOffset, heightOffset);
     },
-    drawLayerCheck: function (layerParams, mapBounds, zoom, precision, warning = false, currentDashboardTimeFilter = false) {
+    drawLayerCheck: function (layerParams,
+      mapBounds,
+      zoom,
+      precision,
+      warning = false,
+      currentDashboardTimeFilter = false) {
       if (!layerParams.mapParams ||
-        !layerParams.currentTimeFilter ||
         !layerParams.type ||
         !mapBounds ||
         !zoom ||
@@ -227,7 +231,9 @@ define(function (require) {
       // current map canvas must contain the extent that the layer was rendered for
       const layerHasDataForCurrentBounds = !this.contains(layerParams.mapParams.mapBounds, mapBounds);
 
-      const timeCheck = currentDashboardTimeFilter && !(layerParams.currentTimeFilter === currentDashboardTimeFilter);
+      const timeCheck = currentDashboardTimeFilter && (!layerParams.currentTimeFilter) ||
+        (currentDashboardTimeFilter && layerParams.currentTimeFilter &&
+          (!_.isEqual(layerParams.currentTimeFilter, currentDashboardTimeFilter)));
 
       return layerParams.enabled && (zoomLevelCheck || layerHasDataForCurrentBounds || timeCheck);
     }
