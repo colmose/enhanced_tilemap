@@ -111,12 +111,6 @@ describe('Kibi Enhanced Tilemap', () => {
 
         [
           {
-            description: 'no time filter on dashboard or layer',
-            layerParamsTimeFilter: undefined,
-            currentDashboardTimeFilter: undefined,
-            result: true
-          },
-          {
             description: 'time filter on dashboard but no time filter stored in layer',
             layerParamsTimeFilter: undefined,
             currentDashboardTimeFilter: 'there is a time filter on dashboard',
