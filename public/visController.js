@@ -207,7 +207,10 @@ define(function (require) {
           };
           dragAndDropPoiLayer.savedDashboardTitle = savedDashboard.lastSavedTitle;
           dragAndDropPoiLayer.isInitialDragAndDrop = true;
-          if (!dragAndDropPoiLayer.id) dragAndDropPoiLayer.id = uuid.v1();
+          if (!dragAndDropPoiLayer.id)  {
+            dragAndDropPoiLayer.id = uuid.v1();
+            sirenSessionState.set(dragAndDropPoiLayer.id, true);
+          }
           dragAndDropPoiLayer.limit = 250;
           dragAndDropPoiLayer.isDragAndDrop = true;
           // initialize on drop
