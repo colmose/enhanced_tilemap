@@ -99,16 +99,7 @@ describe('Kibi Enhanced Tilemap', () => {
         });
       });
 
-      it('time filter draw checks', () => {
-        const layerParams = zoomInFromStartingState.layerParams; // layer parameters including zoom, precision and map bounds of the last successful fetch
-        layerParams.enabled = true; // always enabled, this way the other factors determine the result
-        layerParams.type = 'es_ref_shape';
-
-        // The same as stored in layer, this way time will determine result
-        const _currentMapBounds = zoomInFromStartingState.layerParams.mapParams.mapBounds;
-        const zoom = zoomInFromStartingState.layerParams.mapParams.zoomLevel;
-        const precision = zoomInFromStartingState.layerParams.mapParams.precision;
-
+      describe('Time filter draw checks', () => {
         [
           {
             description: 'time filter on dashboard but no time filter stored in layer',
@@ -157,11 +148,22 @@ describe('Kibi Enhanced Tilemap', () => {
             result: true
           }
         ].forEach(scenario => {
-          layerParams.currentTimeFilter = scenario.layerParamsTimeFilter;
-          const result = utils.drawLayerCheck(layerParams, _currentMapBounds, zoom, precision, null, scenario.currentDashboardTimeFilter);
-          expect(result).to.be(scenario.result);
-        });
+          it(`${scenario.description}`, () => {
+            const layerParams = zoomInFromStartingState.layerParams; // layer parameters including zoom, precision and map bounds of the last successful fetch
+            layerParams.enabled = true; // always enabled, this way the other factors determine the result
+            layerParams.type = 'es_ref_shape';
 
+            // The same as stored in layer, this way time will determine result
+            const _currentMapBounds = zoomInFromStartingState.layerParams.mapParams.mapBounds;
+            const zoom = zoomInFromStartingState.layerParams.mapParams.zoomLevel;
+            const precision = zoomInFromStartingState.layerParams.mapParams.precision;
+
+
+            layerParams.currentTimeFilter = scenario.layerParamsTimeFilter;
+            const result = utils.drawLayerCheck(layerParams, _currentMapBounds, zoom, precision, null, scenario.currentDashboardTimeFilter);
+            expect(result).to.be(scenario.result);
+          });
+        });
       });
 
       it('should redraw because map zoomed outside of collar', () => {

@@ -833,16 +833,6 @@ define(function (require) {
 
           await $scope.searchSource.fetch();
         }
-
-        // if (aggResp && aggResp.CourierFetchRequestStatus === 'aborted' && fromVisParams) {
-        //   // coming from vis.params when no changes are made,
-        //   // the search source fetch will be aborted
-        //   // so we redraw the aggs stored in memory as they are the same
-        //   // otherwise redrawing layer is handled by esResponse watcher
-        //   putAggregationLayerOnMap();
-        // } else if (isHeatMap()) {
-        //   map.fixMapTypeTooltips();
-        // }
       }
     }
     // ============================
