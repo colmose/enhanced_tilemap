@@ -99,6 +99,73 @@ describe('Kibi Enhanced Tilemap', () => {
         });
       });
 
+      describe('Time filter draw checks', () => {
+        [
+          {
+            description: 'time filter on dashboard but no time filter stored in layer',
+            layerParamsTimeFilter: undefined,
+            currentDashboardTimeFilter: 'there is a time filter on dashboard',
+            result: true
+          },
+          {
+            description: 'same time filter in layer and on dashboard',
+            layerParamsTimeFilter: 'same time filter',
+            currentDashboardTimeFilter: 'same time filter',
+            result: false
+          },
+          {
+            description: 'different time filter on dashboard than stored in layer',
+            layerParamsTimeFilter: 'time filter from previous update',
+            currentDashboardTimeFilter: 'dashboard time has been updated',
+            result: true
+          },
+          {
+            description: 'same time filter object test, not used in other scenarios for heightened clarity',
+            layerParamsTimeFilter: {
+              range: {
+                funded_date: { gte: '1997-07-26T21:40:00.000Z', lte: '2013-11-20T23:59:00.000Z', format: 'strict_date_optional_time' }
+              }
+            },
+            currentDashboardTimeFilter: {
+              range: {
+                funded_date: { gte: '1997-07-26T21:40:00.000Z', lte: '2013-11-20T23:59:00.000Z', format: 'strict_date_optional_time' }
+              }
+            },
+            result: false
+          },
+          {
+            description: 'different time filter object test, not used in other scenarios for heightened clarity',
+            layerParamsTimeFilter: {
+              range: {
+                funded_date: { gte: '1987-07-26T21:40:00.000Z', lte: '2013-11-20T23:59:00.000Z', format: 'strict_date_optional_time' }
+              }
+            },
+            currentDashboardTimeFilter: {
+              range: {
+                funded_date: { gte: '1997-07-26T21:40:00.000Z', lte: '2013-11-20T23:59:00.000Z', format: 'strict_date_optional_time' }
+              }
+            },
+            result: true
+          }
+        ].forEach(scenario => {
+          it(`${scenario.description}`, () => {
+            const layerParams = zoomInFromStartingState.layerParams; // layer parameters including zoom, precision and map bounds of the last successful fetch
+            layerParams.enabled = true; // always enabled, this way the other factors determine the result
+            layerParams.type = 'es_ref_shape';
+
+            // The same as stored in layer, this way time will determine result
+            const _currentMapBounds = zoomInFromStartingState.layerParams.mapParams.mapBounds;
+            const zoom = zoomInFromStartingState.layerParams.mapParams.zoomLevel;
+            const precision = zoomInFromStartingState.layerParams.mapParams.precision;
+
+
+            layerParams.currentTimeFilter = scenario.layerParamsTimeFilter;
+            const result = utils.drawLayerCheck(layerParams, _currentMapBounds, zoom, precision, null, scenario.currentDashboardTimeFilter);
+            expect(result).to.be(scenario.result);
+          });
+        });
+      });
+
       it('should redraw because map zoomed outside of collar', () => {
         const layerParams = zoomOutFromStartingState.layerParams; // layer parameters including zoom, precision and map bounds of the last successful fetch
         const _currentMapBounds = zoomOutFromStartingState.mapBounds; // the new zoomed in map extent is INSIDE the bounds that the layer has data fetched for

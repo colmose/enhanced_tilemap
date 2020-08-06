@@ -119,7 +119,7 @@ define(function (require) {
             // inherits from the savedSearch search source instead of main
             searchSource.inherits(savedSearch.searchSource);
             //_siren from main searchSource is used
-            searchSource._siren = options.searchSource._siren;
+            searchSource._siren = options._siren;
 
             if (onDashboardPage()) {
               allFilters = allFilters.concat(...searchSource.filter());
@@ -159,6 +159,7 @@ define(function (require) {
 
       const fetchData = async (searchSource) => {
         try {
+          options.setCurrentTimeFilter(searchSource);
           return await searchSource.fetch();
         } catch (e) {
           notify.warning(`Unsuccessful POI fetch request - ${e}`);

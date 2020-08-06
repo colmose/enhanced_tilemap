@@ -95,7 +95,7 @@ export default class Vector {
                 polygon._map.fire('etm:select-feature-vector', {
                   args: {
                     _siren: options._siren,
-                    geoFieldName: options.geoFieldName,
+                    geoFieldName: options.mainVisGeoFieldName,
                     indexPattern: options.indexPattern,
                     type: feature.geometry.type
                   },

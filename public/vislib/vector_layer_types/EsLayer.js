@@ -166,10 +166,6 @@ export default class EsLayer {
       } else {
         layer.visible = true;
       }
-
-      layer.layerGroup = options.layerGroup;
-
-      return layer;
     } else {
       //when there is no data present for the current map canvas
       layer = L.geoJson();
@@ -190,8 +186,9 @@ export default class EsLayer {
       layer.options = { pane: 'overlayPane' };
 
       layer.visible = options.visible || true;
-      return layer;
     }
+    layer.isDragAndDrop = options.isDragAndDrop;
+    return layer;
   }
 
   isLine = function (type) {

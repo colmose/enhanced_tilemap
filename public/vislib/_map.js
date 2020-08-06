@@ -264,10 +264,8 @@ define(function (require) {
      * users context for all applied filters
      */
     TileMapMap.prototype.addFilters = function (filters) {
-      if (this._filters) {
-        if (this.leafletMap.hasLayer(this._filters)) {
-          this._filters.enabled = true;
-        }
+      if (this._filters && this.leafletMap.hasLayer(this._filters)) {
+        this._filters.enabled = true;
       }
 
       const style = {
@@ -474,6 +472,7 @@ define(function (require) {
 
       mapOptions.center = this._mapCenter;
       mapOptions.zoom = this._mapZoom;
+      mapOptions.worldCopyJump = true;
 
       this.leafletMap = L.map(this._container, mapOptions);
 

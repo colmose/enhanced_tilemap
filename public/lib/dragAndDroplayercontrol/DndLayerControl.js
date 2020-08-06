@@ -206,14 +206,16 @@ function getExtendedMapControl() {
       _leafletMap.fire('showlayer', {
         layerType: layer.type,
         id: layer.id,
-        enabled: enabled
+        enabled,
+        isDragAndDrop: layer.isDragAndDrop
       });
     } else {
       _clearLayerFromMapById(layer.id);
       _leafletMap.fire('hidelayer', {
         layerType: layer.type,
         id: layer.id,
-        enabled
+        enabled,
+        isDragAndDrop: layer.isDragAndDrop
       });
     }
     if (layer.type === 'es_ref_point' || layer.type === 'es_ref_shape') {
@@ -503,7 +505,8 @@ function getExtendedMapControl() {
         _leafletMap.fire('showlayer', {
           layerType: layer.type,
           id: layer.id,
-          enabled: layer.enabled
+          enabled: layer.enabled,
+          isDragAndDrop: layer.isDragAndDrop
         });
       }
     }
@@ -530,7 +533,8 @@ function getExtendedMapControl() {
       _leafletMap.fire('showlayer', {
         layerType: layer.type,
         id: layer.id,
-        enabled: layer.enabled
+        enabled: layer.enabled,
+        isDragAndDrop: layer.isDragAndDrop
       });
     }
     addOverlays(esRefLayerList);
